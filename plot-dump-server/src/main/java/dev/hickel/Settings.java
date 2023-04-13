@@ -11,7 +11,8 @@ import java.util.List;
 
 
 public class Settings {
-    public static List<Path> outputDirectories = List.of();
+   // public static List<Path> outputDirectories = List.of();
+    public static List<Path> outputDirectories = List.of(Path.of("/media/mindspice/plot/"));
     public static volatile int port = 9988;
     public static volatile int socketBufferSize = 32768;
     public static volatile int blockBufferSize = 4194304;

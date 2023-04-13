@@ -16,7 +16,7 @@ public class Settings {
     public static volatile int chunkSize = 4194304;
     public static volatile int fileCheckInterval = 15000;
     public static volatile String serverAddress = "localhost";
-    public static volatile int serverPort = 9000;
+    public static volatile int serverPort = 9988;
     public static volatile List<Path> monitoredDirectories = List.of();
     public static volatile List<String> monitoredFileTypes = List.of();
     public static boolean deleteAfterTransfer = false;

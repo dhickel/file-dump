@@ -40,6 +40,7 @@ public class PathQueue {
         for (var path : pathList) {
             if (Main.activeTransfers.size() < pathList.size()
                     && Main.activeTransfers.containsValue(path)) {
+                System.out.println("cont");
                 continue;
             }
             long size = checkFreeSpace(path, fileSize);
@@ -57,6 +58,7 @@ public class PathQueue {
             if (!Files.exists(path)) { return -1; }
             FileStore fileStore = Files.getFileStore(path);
             availableSpace = fileStore.getUsableSpace();
+            System.out.println("here");
         } catch (IOException e) {
             System.out.println("Removing path: " + path + "\tReason: Failed to read path");
             pathList.remove(path);
@@ -67,6 +69,7 @@ public class PathQueue {
             if (!Settings.deleteForSpace) {
                 pathList.remove(path);
             }
+            System.out.println("here2");
             return -1;
         }
     }
@@ -86,7 +89,7 @@ public class PathQueue {
                     try {
                         Files.delete(file.toPath());
                         System.out.println("Deleted file: " + file.getName()
-                                           + "\tSize: " + file.length() / 1048576 + "MiB");
+                                           + "\tSize: " + Math.round((double)file.length() / 1048576) + " MiB");
                     } catch (IOException e) {
                         System.out.println("Error deleting file: " + file.getName());
                     }

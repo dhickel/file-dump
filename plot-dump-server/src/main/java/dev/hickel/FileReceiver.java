@@ -7,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ArrayBlockingQueue;
 
 
 public class FileReceiver implements Runnable {
@@ -24,10 +25,9 @@ public class FileReceiver implements Runnable {
 
     private void writeFile(RandomAccessFile outFile) throws IOException {
         outFile.seek(offset);
-        byte[] bufferBytes = buffer.array();
-        outFile.write(bufferBytes, 0, buffer.position());
-        offset += bufferBytes.length;
-        buffer.position(0); // Reset position, no need to clear buffer
+        outFile.write(buffer.array(), 0, buffer.position());
+        offset += buffer.position();
+        buffer.position(0);
     }
 
     @Override
@@ -43,7 +43,7 @@ public class FileReceiver implements Runnable {
             // Check for free space, send boolean to client if space available, or file exists
             Path outputPath = null;
             Path freePath = Main.activePaths.getPath(fileSize);
-            if (freePath != null && !Files.exists(Path.of(freePath + File.separator + fileName))) {
+            if (freePath != null && !Files.exists(Path.of(freePath  + fileName))) {
                 outputPath = Paths.get(freePath.toString(), fileName + ".tmp");
             } else {
                 socketOut.writeBoolean(false);
@@ -67,7 +67,7 @@ public class FileReceiver implements Runnable {
                         long seconds = (System.currentTimeMillis() - startTime) / 1000;
                         String sb = "Finished receiving file: " + fileName +
                                 "\tTime: " + seconds + " Sec" +
-                                "\tSpeed: " + (double) fileSize / 1048576 / seconds + "MiBs";
+                                "\tSpeed: " + Math.round((double) fileSize / 1048576 / seconds) + " MiBs";
                         System.out.println(sb);
                         Main.activeTransfers.remove(fileName);
                         return;
