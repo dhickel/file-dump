@@ -36,16 +36,21 @@ public class FileSender implements Runnable {
 
             boolean accepted = socketIn.readBoolean();
             if (!accepted) {
-                System.out.println("No free space in server directories. Or file already exists on server.");
+                Main.activeTransfers.remove(fileName);
+                System.out.println("No space for, file already exists, or all paths in use: " + fileName
+                                           + " will retry in: " + Settings.fileCheckInterval + " Seconds");
                 return;
             }
-            Main.activeTransfers.add(fileName);
+            //Main.activeTransfers.add(fileName);
             System.out.println("Started transfer of file: " + fileName);
             byte[] buffer = new byte[chunkSize];
 
             int bytesRead;
+
             while ((bytesRead = inputFile.read(buffer)) != -1) {
-                for (int i = 0; bytesRead > 0; i+= blockSize) {
+                for (int i = 0; bytesRead > 0; i += blockSize) {
+                    // go ahead from server, keeps from servers filling network buffer while queue is blocking
+                    socketIn.readBoolean();
                     int byteSize = Math.min(blockSize, bytesRead); //calc end offset, EOF is smaller
                     socketOut.writeBoolean(false); // Relay EOF = false;
                     socketOut.writeInt(byteSize);
@@ -57,9 +62,14 @@ public class FileSender implements Runnable {
 
             socketOut.writeBoolean(true); // Relay EOF = true;
             socketOut.flush();
-            socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
-            System.out.println("Finished transfer for file: " + fileName);
+            boolean success =  socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
 
+            if (success) {
+                System.out.println("Finished transfer for file: " + fileName);
+            } else {
+                System.out.println("Error during finalization of file transfer");
+                throw new IllegalStateException("Server responded to end of transfer as failed");
+            }
             if (Settings.deleteAfterTransfer) {
                 Files.delete(file.toPath());
                 System.out.println("Deleted file: " + file);
@@ -68,6 +78,9 @@ public class FileSender implements Runnable {
         } catch (IOException e) {
             Main.activeTransfers.remove(fileName);
             System.out.println("Error in file transfer, most likely connection was lost.");
+            e.printStackTrace();
+        } catch (Exception e) {
+            Main.activeTransfers.remove(fileName);
             e.printStackTrace();
         }
     }

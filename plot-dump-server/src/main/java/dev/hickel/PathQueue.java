@@ -12,24 +12,22 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class PathQueue {
     private volatile List<Path> pathList = new CopyOnWriteArrayList<>();
 
-    public void add(Path path) {
-        pathList.add(path);
-    }
+    public void add(Path path) { pathList.add(path); }
 
-    public void replaceList(List<Path> pathList) {
-        this.pathList = new CopyOnWriteArrayList<>(pathList);
-    }
+    public void replaceList(List<Path> pathList) { this.pathList = new CopyOnWriteArrayList<>(pathList); }
 
-    public Path getPath(long fileSize) {
+    public synchronized Path getPath(String fileName, long fileSize) {
         Path pathMostFree = getPathMostFree(fileSize);
-
         if (pathMostFree == null && Settings.deleteForSpace) {
             try {
                 pathMostFree = deleteForFreeSpace(fileSize);
-            } catch (IOException e) {
-                System.out.println("Error deleting file for more space");
+            } catch (IOException | UnsupportedOperationException e) {
+                System.out.println("Error deleting file(s) for more space");
                 e.printStackTrace();
             }
+        }
+        if (pathMostFree != null) {
+            Main.activeTransfers.put(fileName, pathMostFree);
         }
         return pathMostFree;
     }
@@ -38,9 +36,7 @@ public class PathQueue {
         Path pathMostFree = null;
         long mostFreeSpace = 0;
         for (var path : pathList) {
-            if (Main.activeTransfers.size() < pathList.size()
-                    && Main.activeTransfers.containsValue(path)) {
-                System.out.println("cont");
+            if (Settings.oneTransferPerDirectory && Main.activeTransfers.containsValue(path)) {
                 continue;
             }
             long size = checkFreeSpace(path, fileSize);
@@ -58,7 +54,6 @@ public class PathQueue {
             if (!Files.exists(path)) { return -1; }
             FileStore fileStore = Files.getFileStore(path);
             availableSpace = fileStore.getUsableSpace();
-            System.out.println("here");
         } catch (IOException e) {
             System.out.println("Removing path: " + path + "\tReason: Failed to read path");
             pathList.remove(path);
@@ -66,30 +61,25 @@ public class PathQueue {
         if (availableSpace > fileSize) {
             return availableSpace;
         } else {
-            if (!Settings.deleteForSpace) {
-                pathList.remove(path);
-            }
-            System.out.println("here2");
+            System.out.println("Out of space on path: " + path);
             return -1;
         }
     }
 
     public Path deleteForFreeSpace(long fileSize) throws IOException {
         for (var path : Settings.deletionDirectories) {
-            if (Main.activeTransfers.size() < pathList.size()
-                    && Main.activeTransfers.containsValue(path)) {
+            if (Settings.oneTransferPerDirectory && Main.activeTransfers.containsValue(path)) {
                 continue;
             }
             if (!Files.exists(path)) { continue; }
-
             FileStore fileStore = Files.getFileStore(path);
             for (var file : path.toFile().listFiles()) {
-                if (Settings.deletedFileTypes.contains(getExt(file))
-                        && file.length() >= Settings.deletionThreshHold) {
+                if (Settings.deletedFileTypes.contains(getExt(file)) && file.length() >= Settings.deletionThreshHold) {
                     try {
+                        long size = file.length();
                         Files.delete(file.toPath());
                         System.out.println("Deleted file: " + file.getName()
-                                           + "\tSize: " + Math.round((double)file.length() / 1048576) + " MiB");
+                                                   + "\tSize: " + Math.round((double) size / 1048576) + " MiB");
                     } catch (IOException e) {
                         System.out.println("Error deleting file: " + file.getName());
                     }

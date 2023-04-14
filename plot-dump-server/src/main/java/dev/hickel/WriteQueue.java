@@ -7,8 +7,8 @@ import java.io.RandomAccessFile;
 import java.util.concurrent.ArrayBlockingQueue;
 
 
-public class WriteQueue implements Runnable{
-    private final ArrayBlockingQueue<ChunkData> writeQueue= new ArrayBlockingQueue<>(10);
+public class WriteQueue implements Runnable {
+    private final ArrayBlockingQueue<ChunkData> writeQueue = new ArrayBlockingQueue<>(Settings.queueSize);
     private final RandomAccessFile outputFile;
     private final File file;
     private volatile int state = 1;
@@ -29,7 +29,6 @@ public class WriteQueue implements Runnable{
 
     @Override
     public void run() {
-
         while (state >= 0) {
             try {
                 ChunkData chunk = writeQueue.take();
@@ -40,7 +39,6 @@ public class WriteQueue implements Runnable{
                     System.out.println("lastChunk");
                     state = 0;
                 }
-
             } catch (InterruptedException | IOException e) {
                 System.out.println("Error writing chunk to file.");
                 e.printStackTrace();
@@ -49,11 +47,15 @@ public class WriteQueue implements Runnable{
         }
     }
 
-    public int getState(){
+    public int getState() {
         return state;
     }
 
-    public void abort() {
+    public int getSize() {
+        return writeQueue.size();
+    }
+
+    public void close() {
         state = -2;
     }
 

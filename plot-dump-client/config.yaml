@@ -1,0 +1,35 @@
+#####################
+### Client Config ###
+#####################
+
+
+# Address and port of server receiving the files
+serverAddress: "127.0.0.1"
+serverPort: 9988
+
+# How many transfer to have open at once
+maxTransfers: 3
+
+# How often to check for new files in minutes
+fileCheckInterval: 15
+
+# Directories search at fileCheckInterval, indifferent to tailing slash, may need to escape backslash on windows
+monitoredDirectories:
+- "/dir1/"
+- "/dir2"
+
+# File types that are monitored for to send
+monitoredFileTypes:
+- "plot"
+
+# Amount to stream off disk as one time, per transfer, Will slightly increase memory requirements
+chunkSize: 4194304
+
+# Amount of data to send to server at once, per transfer
+# Ideally should be be a power of 2 and a divisor of the server's blockBufferSize
+blockSize: 32768
+
+# Delete local files after successful transfers
+# Server will only relay a sucessful transfer once last write is completed
+deleteAfterTransfer: false
+

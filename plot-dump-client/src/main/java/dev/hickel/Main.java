@@ -2,67 +2,79 @@ package dev.hickel;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Scanner;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 
 
 public class Main {
-    private static final ExecutorService executor
-            = Executors.newFixedThreadPool(Settings.maxTransfers);
     public static final ConcurrentHashMap.KeySetView<String, Boolean> activeTransfers
             = ConcurrentHashMap.newKeySet(10);
 
-    static {
+    public static void main(String[] args) throws IOException {
+        final ScheduledExecutorService executor = Executors.newScheduledThreadPool(Settings.maxTransfers);
+        final Predicate<File> eligibleDirectory = file -> file.isFile()
+                && activeTransfers.size() < Settings.maxTransfers + 1;
+        AtomicBoolean exit = new AtomicBoolean(false);
+
+        try { Settings.load(); } catch (IOException e) {
+            System.out.println("Failed to load config, exiting...");
+            throw new RuntimeException(e);
+        }
+
+
+
+        // Give option to allow transfers to finish before closing
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             executor.shutdownNow();
-            System.out.println("Exiting...Waiting for existing transfers to complete...");
+            exit.set(true);
             try {
-                executor.awaitTermination(60, TimeUnit.MINUTES);
-            } catch (InterruptedException ignored) {
-            }
+                Scanner sc = new Scanner(System.in);
+                String input = "";
+                while (true) {
+                    System.out.println("Abort Existing Transfers? (y/n)");
+                    input = sc.nextLine();
+                    if (input.equals("y")) {
+                        System.out.println("Aborting existing transfers.");
+                        executor.awaitTermination(0, TimeUnit.MILLISECONDS);
+                        break;
+                    } else if (input.equals("n")) {
+                        executor.awaitTermination(60, TimeUnit.MINUTES);
+                        System.out.println("Waiting up to 60 min for transfers to complete.");
+                        break;
+                    }
+                }
+            } catch (InterruptedException ignored) { }
         }));
-    }
 
-
-    public static void main(String[] args) throws IOException {
-
-//        try {
-//            while (true) {
-//                if (activeTransfers.size() >= Settings.maxTransfers) {
-//                    Thread.sleep(Settings.fileCheckInterval);
-//                    continue;
-//                }
-//                checkForNewFiles();
-//            }
-//        } catch (InterruptedException ignored) {
-//        }
-
-        executor.submit(new FileSender(new File("/media/mindspice/chiaPlot1/plot-k32-c8-2023-04-13-09-49-a7950246d7049bcc0ee5a62ef0ca66c86c677e023e24bee172089423763b79d8.plot")));
-    }
-
-    private static void checkForNewFiles() {
-        for (var path : Settings.monitoredDirectories) {
-            if (!Files.exists(path)) { continue; }
-            for (var file : path.toFile().listFiles()) {
-                if (!file.isFile()
-                        || !Settings.monitoredFileTypes.contains(getExt(file))
-                        || activeTransfers.contains(file.getName())
-                ) {
-                    continue;
+        executor.scheduleAtFixedRate(() -> {
+            try {
+                if (!exit.get()) {
+                    Settings.load(); // Can just stick this here instead of giving it its own thread
+                    Settings.monitoredDirectories.forEach(path -> Arrays.stream(path.toFile().listFiles())
+                            .takeWhile(eligibleDirectory).filter(
+                                    file -> Settings.monitoredFileTypes.contains(getExt(file))
+                                            && !activeTransfers.contains(file.getName()))
+                            .forEach(file -> {
+                                try {
+                                    executor.submit(new FileSender(file));
+                                    activeTransfers.add(file.getName());
+                                } catch (IOException e) { System.out.println("Failed to connect to server: " + file); }
+                            }));
                 }
-                try {
-                    executor.submit(new FileSender(file));
-                } catch (IOException e) {
-                    System.out.println("Failed to initiate transfer of file: " + file);
-                    e.printStackTrace();
-                }
+            } catch (UnsupportedOperationException e) {
+                System.out.println("Failed to open a directory");
+                e.printStackTrace();
+            } catch (IOException e) {
+                System.out.println("Error hot loading config change");
             }
-            if (activeTransfers.size() >= Settings.maxTransfers) { return; }
-        }
+        }, 0, Settings.fileCheckInterval, TimeUnit.SECONDS);
     }
 
-    // Why is there not an existing method for this....
     private static String getExt(File file) {
         return file.getName().substring(file.getName().lastIndexOf('.') + 1);
     }
+
 }
