@@ -1,0 +1,48 @@
+#####################
+### Server Config ###
+#####################
+
+# Best left on, some memory can be save by disabling
+# Disabling will block from receiving data every time it writes the blockBuffer
+separateThreadForWrite: true
+
+# Max queue size when using separateThreadForWrite
+# will increase memory usage both of application and os network buffer
+# increasing too much will allow client to send data constantly which will quickly fill the os network buffer
+queueSize: 8
+
+# Indifferent to trailing slash, you may need to escape backslashes on windows
+outputDirectories:
+- "/dir"
+- "/dir2/"
+
+# Will only initiate one transfer to a directory at at time regardless of free space
+limitOneTransferPerDirectory: true
+
+# Port to use
+port: 9988
+
+# -1 to let jvm control, best left untouched, too small will slow transfers to a crawl
+# Increasing it raises memory used, 32767 is also a good size.
+socketBufferSize: -1
+
+# Amount of data to buffer before flushing to disk
+# Will increase memory requirements, and is * queueSize if using separateThreadForWrite
+# Ideally should be divisible by 512 for most drives, or 4096 for others
+blockBufferSize: 4194304
+
+# Delete files from the specified deletion directory if they meet the type and size requirements
+deleteForSpace: false
+
+# Do not include the . only the extension name ex. "plot" not ".plot"
+deletedFileTypes:
+- "plot"
+
+# Directories who files are subject to deletion if they meet the filetype and size requirements
+deletionDirectories:
+- "/dir1"
+- "/dir2/"
+
+# Threshold in MiB for files to delete, any files larger than this will be deleted
+deletionThreshHold: 99000 #MiB
+overWriteExisting: true
