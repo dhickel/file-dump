@@ -6,31 +6,32 @@ import java.nio.file.Files;
 
 
 public class QueuedFileSender implements Runnable {
-    private final Socket socket;
     private final String fileName;
     private final long fileSize;
     private final File file;
     private final int chunkSize;
     private final int blockSize;
     private final ReadQueue readQueue;
+    private Thread readerThread;
 
     public QueuedFileSender(File file) throws IOException {
         fileSize = file.length();
         fileName = file.getName();
-        socket = new Socket(Settings.serverAddress, Settings.serverPort);
-        socket.setTcpNoDelay(false);
         this.file = file;
         chunkSize = Settings.chunkSize;
         blockSize = Settings.blockSize;
         readQueue = new ReadQueue(file);
-        if (Settings.socketBufferSize > 0) { socket.setSendBufferSize(Settings.socketBufferSize); }
+
     }
 
     @Override
     public void run() {
-        try (DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
+        try (Socket socket = new Socket(Settings.serverAddress, Settings.serverPort);
+             DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
              DataInputStream socketIn = new DataInputStream(socket.getInputStream());) {
 
+            socket.setTcpNoDelay(false);
+            if (Settings.socketBufferSize > 0) { socket.setSendBufferSize(Settings.socketBufferSize); }
             // Send file info
             socketOut.writeUTF(fileName);
             socketOut.writeLong(fileSize);
@@ -44,13 +45,15 @@ public class QueuedFileSender implements Runnable {
                 return;
             }
 
-            new Thread(readQueue).start();
+            Thread writerThread = new Thread(readQueue);
+            writerThread.start();
+
             System.out.println("Started transfer of file: " + fileName);
 
             while (true) {
                 byte[] byteBlock = readQueue.getNextChunk();
                 int blockLength = byteBlock.length;
-                if (blockLength == 0) { break;}
+                if (blockLength == 0) { break; }
                 for (int i = 0; blockLength > 0; i += blockSize) {
                     int byteSize = Math.min(blockSize, blockLength); //calc end offset, EOF is smaller
                     socketOut.writeBoolean(false); // Relay EOF = false;
@@ -63,7 +66,7 @@ public class QueuedFileSender implements Runnable {
 
             socketOut.writeBoolean(true); // Relay EOF = true;
             socketOut.flush();
-            boolean success =  socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
+            boolean success = socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
 
             if (success) {
                 System.out.println("Finished transfer for file: " + fileName);
