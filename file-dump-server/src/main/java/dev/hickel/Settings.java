@@ -24,7 +24,7 @@ public class Settings {
     public static volatile boolean oneTransferPerDirectory = true;
     public static volatile int port = 9988;
     public static volatile int socketBufferSize = 32768;
-    public static volatile int blockBufferSize = 32768;
+    public static volatile int blockBufferSize = 4194304;
     public static volatile int writeBufferSize = -1;
     public static volatile boolean deleteForSpace = false;
     public static volatile List<String> deletedFileTypes = List.of();

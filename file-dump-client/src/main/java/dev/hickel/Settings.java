@@ -19,7 +19,7 @@ public class Settings {
     public static volatile boolean separateThreadForReading = true;
     public static volatile String serverAddress = "localhost";
     public static volatile int serverPort = 9988;
-    public static volatile int maxTransfers = 2;
+    public static volatile int maxTransfers = 3;
     public static volatile int socketBufferSize = -1;
     public static volatile int readQueueSize = 1024;
     public static volatile List<String> monitoredDirectories = List.of();

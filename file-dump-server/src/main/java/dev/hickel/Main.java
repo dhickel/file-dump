@@ -25,21 +25,23 @@ public class Main {
 
         // Give option to allow transfers to finish before closing
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            executor.shutdown();
             exit.set(true);
             try {
                 Scanner sc = new Scanner(System.in);
                 String input = "";
                 while (true) {
-                    System.out.println("Abort Existing Transfers? (y/n)");
+                    System.out.println("\nAbort Existing Transfers? (y/n)");
                     input = sc.nextLine();
                     if (input.equals("y")) {
+                        executor.shutdownNow();
                         System.out.println("Aborting existing transfers.");
-                        executor.awaitTermination(0, TimeUnit.MILLISECONDS);
+                        System.exit(1);
                         break;
                     } else if (input.equals("n")) {
-                        executor.awaitTermination(60, TimeUnit.MINUTES);
                         System.out.println("Waiting up to 60 min for transfers to complete.");
+                        executor.shutdown();
+                        executor.awaitTermination(60, TimeUnit.MINUTES);
+                        System.exit(0);
                         break;
                     }
                 }
@@ -63,9 +65,10 @@ public class Main {
             System.out.println("Server started. Waiting for connections...");
             while (!exit.get()) {
                 Socket socket = serverSocket.accept();
-                var s = executor.submit(Settings.separateThreadForWrite
-                                                ? new QueuedFileReceiver(socket, activePaths)
-                                                : new FileReceiver(socket, activePaths)
+                if (exit.get()) { return; }
+                executor.submit(Settings.separateThreadForWrite
+                                        ? new QueuedFileReceiver(socket, activePaths)
+                                        : new FileReceiver(socket, activePaths)
                 );
             }
         } catch (IOException e) { e.printStackTrace(); }

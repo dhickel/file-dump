@@ -2,14 +2,19 @@
 ### Server Config ###
 #####################
 
+
+# These settings will use around 500-600MB memory when used with the launch script
+
 # Best left on, some memory can be save by disabling
 # Disabling will block from receiving data every time it writes the blockBuffer
+# Offers around a 10-15% Speed increase for ~3x the memory used
 separateThreadForWrite: true
 
-# Max queue size when using separateThreadForWrite
-# will increase memory usage both of application and os network buffer
-# increasing too much will allow client to send data constantly which will quickly fill the os network buffer
-queueSize: 8
+# Max queue size when using separateThreadForWrite, not sure the best range
+# if doing single transfers over a fast network it will offer more benefit
+# causes less stalling when larger, doesn't scale well. If doing multiple transfers at once'
+# it can be lower
+queueSize: 12
 
 # Indifferent to trailing slash, you may need to escape backslashes on windows
 outputDirectories:
@@ -25,19 +30,15 @@ port: 9988
 # -1 to let jvm control, best left untouched, too small will slow transfers
 socketBufferSize: 32768
 
-# Amount of data to buffer before flushing to disk
-# Will increase memory requirements, and is * queueSize if using separateThreadForWrite
-# Ideally should be divisible by 512 for most drives, or 4096 for others
+
+# How many blocks to buffer from the socket, before flushing to disk or the queue
 blockBufferSize: 4194304
 
 
 # Size of buffer for disk writes when using separateThreadForWrite, may see improvements editing
 # Should be in a power of 2 of you hard disk blocksize, and small enough to fit into cache.
 # Increasing it can lead to less seeks, but you hdd is likely already cacheing multiple buffers worth before writeing
-writeBufferSize: -1
-
-# Delete files from the specified deletion directory if they meet the type and size requirements
-deleteForSpace: false
+writeBufferSize: 4194304
 
 # Do not include the . only the extension name ex. "plot" not ".plot"
 deletedFileTypes:
@@ -48,6 +49,14 @@ deletionDirectories:
 - "/dir1"
 - "/dir2/"
 
+
+# Delete files from the specified deletion directory if they meet the type and size requirements
+deleteForSpace: false
+
+
 # Threshold in MiB for files to delete, any files larger than this will be deleted
-deletionThreshHold: 99000 #MiB
+deletionThreshHold: 9999999 #MiB
+
+
+# Overwrite file if it exists.
 overWriteExisting: true

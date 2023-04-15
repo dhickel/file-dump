@@ -17,7 +17,6 @@ public class QueuedFileReceiver implements Runnable {
     private final ActivePaths activePaths;
     private final ByteBuffer buffer;
     private String fileName = "";
-    private long offset = 0;
     private WriteQueue writeQueue;
 
     public QueuedFileReceiver(Socket socket, ActivePaths activePaths) throws SocketException {

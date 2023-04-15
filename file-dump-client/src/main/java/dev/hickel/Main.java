@@ -35,12 +35,13 @@ public class Main {
                     if (input.equals("y")) {
                         System.out.println("Aborting existing transfers.");
                         executor.shutdownNow();
-                        executor.awaitTermination(0, TimeUnit.MILLISECONDS);
+                        System.exit(1);
                         break;
                     } else if (input.equals("n")) {
+                        System.out.println("Waiting up to 60 min for transfers to complete.");
                         executor.shutdown();
                         executor.awaitTermination(60, TimeUnit.MINUTES);
-                        System.out.println("Waiting up to 60 min for transfers to complete.");
+                        System.exit(0);
                         break;
                     }
                 }
@@ -60,7 +61,7 @@ public class Main {
                             .flatMap(optFiles -> optFiles.stream().flatMap(Stream::of))
                             .filter(File::isFile)
                             .filter(file -> Settings.monitoredFileTypes.contains(getExt(file)))
-                            .takeWhile(eligibleDirectory)
+                            .filter(eligibleDirectory)
                             .forEach(file -> {
                                 try {
                                     activeTransfers.add(file.getName());
