@@ -6,7 +6,6 @@ import java.nio.file.Files;
 
 
 public class FileSender implements Runnable {
-    private final Socket socket;
     private final String fileName;
     private final long fileSize;
     private final File file;
@@ -16,19 +15,20 @@ public class FileSender implements Runnable {
     public FileSender(File file) throws IOException {
         fileSize = file.length();
         fileName = file.getName();
-        socket = new Socket(Settings.serverAddress, Settings.serverPort);
-        socket.setTcpNoDelay(false);
         this.file = file;
         chunkSize = Settings.chunkSize;
         blockSize = Settings.blockSize;
-        if (Settings.socketBufferSize > 0) { socket.setSendBufferSize(Settings.socketBufferSize); }
     }
 
     @Override
     public void run() {
-        try (DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
+        try (Socket socket = new Socket(Settings.serverAddress, Settings.serverPort);
+             DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
              DataInputStream socketIn = new DataInputStream(socket.getInputStream());
              FileInputStream inputFile = new FileInputStream(file)) {
+
+            socket.setTcpNoDelay(false);
+            if (Settings.socketBufferSize > 0) { socket.setSendBufferSize(Settings.socketBufferSize); }
 
             // Send file info
             socketOut.writeUTF(fileName);
@@ -61,7 +61,7 @@ public class FileSender implements Runnable {
 
             socketOut.writeBoolean(true); // Relay EOF = true;
             socketOut.flush();
-            boolean success =  socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
+            boolean success = socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
 
             if (success) {
                 System.out.println("Finished transfer for file: " + fileName);
@@ -77,6 +77,7 @@ public class FileSender implements Runnable {
             Main.activeTransfers.remove(fileName);
 
         } catch (IOException e) {
+
             Main.activeTransfers.remove(fileName);
             System.out.println("Error in file transfer, most likely connection was lost.");
             e.printStackTrace();

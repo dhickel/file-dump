@@ -35,13 +35,16 @@ public class Main {
                     if (input.equals("y")) {
                         System.out.println("Aborting existing transfers.");
                         executor.shutdownNow();
-                        System.exit(1);
+                        sc.close();
+                        // Everything uses try with resources, writer threads get terminated
+                        // idk why system.exit() is not working, will debug later
+                        Runtime.getRuntime().halt(1);
                         break;
                     } else if (input.equals("n")) {
                         System.out.println("Waiting up to 60 min for transfers to complete.");
                         executor.shutdown();
                         executor.awaitTermination(60, TimeUnit.MINUTES);
-                        System.exit(0);
+                        Runtime.getRuntime().halt(1);
                         break;
                     }
                 }
