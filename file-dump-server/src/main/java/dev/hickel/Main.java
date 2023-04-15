@@ -68,7 +68,7 @@ public class Main {
                 if (exit.get()) { return; }
                 executor.submit(Settings.separateThreadForWrite
                                         ? new QueuedFileReceiver(socket, activePaths)
-                                        : new FileReceiver(socket, activePaths)
+                                        : new FileReceiverTest(socket, activePaths)
                 );
             }
         } catch (IOException e) { e.printStackTrace(); }
