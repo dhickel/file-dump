@@ -20,18 +20,18 @@ import java.util.List;
 public class Settings {
 
     // public static List<Path> outputDirectories = List.of();
-    public static volatile boolean separateThreadForWrite = true;
+    public static volatile boolean separateThreadForWrite = false;
     public static volatile int queueSize = 10;
-    public static volatile List<Path> outputDirectories;
+    public static volatile List<Path> outputDirectories = List.of(Path.of("/mnt/c9df28ae-f859-4b2d-bf2f-f8b3f4cdf9a7"));
     public static volatile boolean oneTransferPerDirectory = true;
     public static volatile int port = 9988;
-    public static volatile int socketBufferSize = 8096;
+    public static volatile int socketBufferSize = -1;
     public static volatile int blockBufferSize = 4194304;
     public static volatile int writeBufferSize = 4194304;
     public static volatile boolean deleteForSpace = true;
-    public static volatile List<String> deletedFileTypes = List.of();
-    public static volatile List<Path> deletionDirectories = List.of();
-    public static volatile long deletionThreshHold = Long.MAX_VALUE;
+    public static volatile List<String> deletedFileTypes = List.of("plot");
+    public static volatile List<Path> deletionDirectories = List.of(Path.of("/mnt/c9df28ae-f859-4b2d-bf2f-f8b3f4cdf9a7"));
+    public static volatile long deletionThreshHold = 79000L * 1048576;
     public static volatile boolean overWriteExisting = false;
     private static volatile String lastCheckSum = "";
     private static final TypeReference<List<String>> TYPE_REF = new TypeReference<>() { };

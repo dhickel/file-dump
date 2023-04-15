@@ -2,11 +2,12 @@ package dev.hickel;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 
 public class Main {
@@ -15,8 +16,6 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(Settings.maxTransfers);
-        final Predicate<File> eligibleDirectory = file -> file.isFile()
-                && activeTransfers.size() < Settings.maxTransfers + 1;
         AtomicBoolean exit = new AtomicBoolean(false);
 
         try { Settings.load(); } catch (IOException e) {
@@ -26,7 +25,6 @@ public class Main {
 
         // Give option to allow transfers to finish before closing
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            executor.shutdown();
             exit.set(true);
             try {
                 Scanner sc = new Scanner(System.in);
@@ -36,9 +34,11 @@ public class Main {
                     input = sc.nextLine();
                     if (input.equals("y")) {
                         System.out.println("Aborting existing transfers.");
+                        executor.shutdownNow();
                         executor.awaitTermination(0, TimeUnit.MILLISECONDS);
                         break;
                     } else if (input.equals("n")) {
+                        executor.shutdown();
                         executor.awaitTermination(60, TimeUnit.MINUTES);
                         System.out.println("Waiting up to 60 min for transfers to complete.");
                         break;
@@ -47,28 +47,42 @@ public class Main {
             } catch (InterruptedException ignored) { }
         }));
 
+        final Predicate<File> eligibleDirectory = file -> !activeTransfers.contains(file.getName())
+                && activeTransfers.size() < Settings.maxTransfers;
+
         executor.scheduleAtFixedRate(() -> {
             try {
                 if (!exit.get()) {
                     Settings.load(); // Can just stick this here instead of giving it its own thread
-                    Settings.monitoredDirectories.forEach(path -> Arrays.stream(path.toFile().listFiles())
+                    Settings.monitoredDirectories.stream()
+                            .map(File::new)
+                            .map(dir -> Optional.ofNullable(dir.listFiles()))
+                            .flatMap(optFiles -> optFiles.stream().flatMap(Stream::of))
+                            .filter(File::isFile)
+                            .filter(file -> Settings.monitoredFileTypes.contains(getExt(file)))
                             .takeWhile(eligibleDirectory)
-                            .filter(file -> Settings.monitoredFileTypes.contains(getExt(file))
-                                    && !activeTransfers.contains(file.getName()))
                             .forEach(file -> {
                                 try {
-                                    executor.submit(new FileSender(file));
                                     activeTransfers.add(file.getName());
-                                } catch (IOException e) { System.out.println("Failed to connect to server: " + file); }
-                            }));
+                                    executor.submit(Settings.separateThreadForReading
+                                                            ? new QueuedFileSender(file)
+                                                            : new FileSender(file)
+                                    );
+                                } catch (IOException e) {
+                                    System.out.println("Failed to connect to server: " + file);
+                                    ;
+                                }
+                            });
                 }
             } catch (UnsupportedOperationException e) {
-                System.out.println("Failed to open a directory");
+                System.out.println("Error in permissions accessing a path,  make sure userspace has " +
+                                           "appropriate permissions, as this prevents the monitoring of file changes");
                 e.printStackTrace();
             } catch (IOException e) {
-                System.out.println("Error hot loading config change");
+                System.out.println("Error hot loading config");
             }
         }, 0, Settings.fileCheckInterval, TimeUnit.SECONDS);
+
     }
 
     private static String getExt(File file) {

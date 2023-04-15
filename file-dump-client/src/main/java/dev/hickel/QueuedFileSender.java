@@ -5,15 +5,16 @@ import java.net.Socket;
 import java.nio.file.Files;
 
 
-public class FileSender implements Runnable {
+public class QueuedFileSender implements Runnable {
     private final Socket socket;
     private final String fileName;
     private final long fileSize;
     private final File file;
     private final int chunkSize;
     private final int blockSize;
+    private final ReadQueue readQueue;
 
-    public FileSender(File file) throws IOException {
+    public QueuedFileSender(File file) throws IOException {
         fileSize = file.length();
         fileName = file.getName();
         socket = new Socket(Settings.serverAddress, Settings.serverPort);
@@ -21,14 +22,14 @@ public class FileSender implements Runnable {
         this.file = file;
         chunkSize = Settings.chunkSize;
         blockSize = Settings.blockSize;
+        readQueue = new ReadQueue(file);
         if (Settings.socketBufferSize > 0) { socket.setSendBufferSize(Settings.socketBufferSize); }
     }
 
     @Override
     public void run() {
         try (DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
-             DataInputStream socketIn = new DataInputStream(socket.getInputStream());
-             FileInputStream inputFile = new FileInputStream(file)) {
+             DataInputStream socketIn = new DataInputStream(socket.getInputStream());) {
 
             // Send file info
             socketOut.writeUTF(fileName);
@@ -43,19 +44,20 @@ public class FileSender implements Runnable {
                 return;
             }
 
+            new Thread(readQueue).start();
             System.out.println("Started transfer of file: " + fileName);
-            byte[] buffer = new byte[chunkSize];
 
-            int bytesRead;
-
-            while ((bytesRead = inputFile.read(buffer)) != -1) {
-                for (int i = 0; bytesRead > 0; i += blockSize) {
-                    int byteSize = Math.min(blockSize, bytesRead); //calc end offset, EOF is smaller
+            while (true) {
+                byte[] byteBlock = readQueue.getNextChunk();
+                int blockLength = byteBlock.length;
+                if (blockLength == 0) { break;}
+                for (int i = 0; blockLength > 0; i += blockSize) {
+                    int byteSize = Math.min(blockSize, blockLength); //calc end offset, EOF is smaller
                     socketOut.writeBoolean(false); // Relay EOF = false;
                     socketOut.writeInt(byteSize);
-                    socketOut.write(buffer, i, byteSize);
+                    socketOut.write(byteBlock, i, byteSize);
                     socketOut.flush();
-                    bytesRead -= byteSize;
+                    blockLength -= byteSize;
                 }
             }
 
@@ -68,19 +70,23 @@ public class FileSender implements Runnable {
             } else {
                 System.out.println("Error during finalization of file transfer");
                 Main.activeTransfers.remove(fileName);
+                readQueue.stop();
                 throw new IllegalStateException("Server responded to end of transfer as failed");
             }
             if (Settings.deleteAfterTransfer) {
                 Files.delete(file.toPath());
                 System.out.println("Deleted file: " + file);
             }
+            readQueue.stop();
             Main.activeTransfers.remove(fileName);
 
         } catch (IOException e) {
+            readQueue.stop();
             Main.activeTransfers.remove(fileName);
             System.out.println("Error in file transfer, most likely connection was lost.");
             e.printStackTrace();
         } catch (Exception e) {
+            readQueue.stop();
             Main.activeTransfers.remove(fileName);
             e.printStackTrace();
         }

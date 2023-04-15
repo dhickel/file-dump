@@ -9,25 +9,25 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.List;
 
 
 public class Settings {
-    public static volatile String serverAddress = "";
+    public static volatile boolean separateThreadForReading = true;
+    public static volatile String serverAddress = "localhost";
     public static volatile int serverPort = 9988;
-    public static volatile int maxTransfers = 3;
+    public static volatile int maxTransfers = 2;
     public static volatile int socketBufferSize = -1;
-    public static volatile List<Path> monitoredDirectories = List.of();
-    public static volatile List<String> monitoredFileTypes = List.of();
+    public static volatile int writeQueueSize = 1024;
+    public static volatile List<String> monitoredDirectories = List.of("/media/mindspice/plot");
+    public static volatile List<String> monitoredFileTypes = List.of("ckpt");
     public static volatile int blockSize = 32768;
     public static volatile int chunkSize = 4194304;
     public static volatile int fileCheckInterval = 30;
-    public static boolean deleteAfterTransfer = false;
+    public static boolean deleteAfterTransfer = true;
     private static volatile String lastCheckSum = "";
     private static final TypeReference<List<String>> TYPE_REF = new TypeReference<>() { };
 
@@ -44,12 +44,14 @@ public class Settings {
         while (iter.hasNext()) {
             var next = iter.next();
             switch (next.getKey()) {
+                case "separateThreadForReading" -> separateThreadForReading = next.getValue().asBoolean();
                 case "serverAddress" -> serverAddress = next.getValue().asText();
                 case "serverPort" -> serverPort = next.getValue().asInt();
                 case "maxTransfers" -> maxTransfers = next.getValue().asInt();
                 case "socketBufferSize" -> socketBufferSize = next.getValue().asInt();
+                case "writeQueueSize" -> writeQueueSize = next.getValue().asInt();
                 case "monitoredDirectories" ->
-                        monitoredDirectories = stringsToPaths(mapper.readValue(next.getValue().traverse(), TYPE_REF));
+                        monitoredDirectories = mapper.readValue(next.getValue().traverse(), TYPE_REF);
                 case "monitoredFileTypes" ->
                         monitoredFileTypes = mapper.readValue(next.getValue().traverse(), TYPE_REF);
                 case "blockSize" -> blockSize = next.getValue().asInt();
@@ -62,26 +64,14 @@ public class Settings {
         System.out.println(printConfig());
     }
 
-    private static List<Path> stringsToPaths(List<String> strings) {
-        List<Path> paths = new ArrayList<>();
-        for (var s : strings) {
-            if (!String.valueOf(s.charAt(s.length() - 1)).equals(File.separator)) { s += File.separator; }
-            Path p = Path.of(s);
-            if (Files.exists(p)) {
-                paths.add(p);
-            } else {
-                System.out.println("Path does not exist, skipping : " + p);
-            }
-        }
-        return paths;
-    }
-
     private static String printConfig() {
         final StringBuilder sb = new StringBuilder("Loaded Config: ");
+        sb.append("\n  separateThreadForReading: ").append(separateThreadForReading);
         sb.append("\n  serverAddress: ").append(serverAddress);
         sb.append("\n  serverPort: ").append(serverPort);
         sb.append("\n  maxTransfers: ").append(maxTransfers);
         sb.append("\n  socketBufferSize: ").append(socketBufferSize);
+        sb.append("\n  writeQueueSize: ").append(writeQueueSize);
         sb.append("\n  monitoredDirectories: ").append(monitoredDirectories);
         sb.append("\n  monitoredFileTypes: ").append(monitoredFileTypes);
         sb.append("\n  blockSize: ").append(blockSize);

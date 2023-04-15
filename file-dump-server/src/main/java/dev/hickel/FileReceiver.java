@@ -9,11 +9,13 @@ import java.nio.file.Path;
 
 public class FileReceiver implements Runnable {
     private final Socket socket;
+    private final ActivePaths activePaths;
     private final ByteBuffer buffer;
     private String fileName = "";
 
-    public FileReceiver(Socket socket) throws SocketException {
+    public FileReceiver(Socket socket, ActivePaths activePaths) throws SocketException {
         this.socket = socket;
+        this.activePaths = activePaths;
         buffer = ByteBuffer.allocate(Settings.blockBufferSize);
         socket.setTcpNoDelay(false);
         if (Settings.socketBufferSize > 0) { socket.setReceiveBufferSize(Settings.socketBufferSize); }
@@ -23,18 +25,6 @@ public class FileReceiver implements Runnable {
         outBuffer.write(buffer.array(), 0, buffer.position());
         buffer.position(0);
         if (isFinished) { outBuffer.flush(); }
-    }
-
-    private File getFileLocation(String fileName, long fileSize) {
-        Path freePath = Main.activePaths.getPath(fileName, fileSize);
-        if (freePath == null) {
-            return null;
-        }
-        freePath = freePath.resolve(fileName);
-        if (freePath.toFile().exists() && !Settings.overWriteExisting) {
-            return null;
-        }
-        return new File(freePath + ".tmp");
     }
 
     @Override
@@ -48,8 +38,8 @@ public class FileReceiver implements Runnable {
             fileSize = socketIn.readLong();
 
             // Check for free space, send boolean to client if space not available, or file exists
-            File outputFile = getFileLocation(fileName, fileSize);
-            if (outputFile == null) {
+            Path freePath = activePaths.getPath(fileName, fileSize);
+            if (freePath == null) {
                 socketOut.writeBoolean(false);
                 socketOut.flush();
                 System.out.println("No space for, file already exists, or all paths in use: " + fileName);
@@ -57,9 +47,9 @@ public class FileReceiver implements Runnable {
             }
 
             // Inform client to begin
+            File outputFile = freePath.toFile();
             System.out.println("Receiving file: " + fileName +" to: " + outputFile.getParentFile());
             socketOut.writeBoolean(true);
-            Main.activeTransfers.put(fileName, outputFile.getParentFile().toPath());
 
             try (FileOutputStream outFileStream = new FileOutputStream(outputFile);
                  BufferedOutputStream bufferStream = Settings.writeBufferSize < 0
@@ -67,22 +57,20 @@ public class FileReceiver implements Runnable {
                          : new BufferedOutputStream(outFileStream, Settings.writeBufferSize)) {
 
                 while (true) {
-                    // Let server know we are not blocking for a write, so it doesn't fill os network buffer
-                    socketOut.writeBoolean(true);
-
                     // Submit any remaining buffer if server is finished sending, close socket and cleanup
                     boolean finished = socketIn.readBoolean();
                     if (finished) {
                         writeFile(bufferStream, true);
+                        activePaths.removePath(fileName);
                         File finalFile = new File(outputFile.getParent(), fileName);
                         outputFile.renameTo(finalFile);
+
                         if (!finalFile.exists() || finalFile.length() != fileSize) {
                             socketOut.writeBoolean(false); // Relay there as an issues
                             throw new IllegalStateException("Output file does not exist");
                         }
                         socketOut.writeBoolean(true); // Relay successful transfer
                         socketOut.flush();
-                        Main.activeTransfers.remove(fileName);
 
                         long seconds = (System.currentTimeMillis() - startTime) / 1000;
                         String metrics = "Finished receiving file: " + fileName +" to: " + outputFile.getParentFile() +
@@ -104,11 +92,11 @@ public class FileReceiver implements Runnable {
                 }
             }
         } catch (IOException e) {
-            Main.activeTransfers.remove(fileName);
+            activePaths.removePath(fileName);
             System.out.println("Error encountered aborting transfer of: " + fileName);
             e.printStackTrace();
         } catch (Exception e) {
-            Main.activeTransfers.remove(fileName);
+            activePaths.removePath(fileName);
             e.printStackTrace();
         }
     }

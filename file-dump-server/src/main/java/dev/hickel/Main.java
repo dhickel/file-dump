@@ -3,9 +3,7 @@ package dev.hickel;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Path;
 import java.util.Scanner;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -13,10 +11,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class Main {
-    public static ConcurrentHashMap<String, Path> activeTransfers = new ConcurrentHashMap<>();
-    public static final PathQueue activePaths = new PathQueue();
 
     public static void main(String[] args) {
+        final ActivePaths activePaths = new ActivePaths();
         final ExecutorService executor = Executors.newCachedThreadPool();
         AtomicBoolean exit = new AtomicBoolean(false);
 
@@ -67,8 +64,8 @@ public class Main {
             while (!exit.get()) {
                 Socket socket = serverSocket.accept();
                 var s = executor.submit(Settings.separateThreadForWrite
-                                                ? new QueuedFileReceiver(socket)
-                                                : new FileReceiver(socket)
+                                                ? new QueuedFileReceiver(socket, activePaths)
+                                                : new FileReceiver(socket, activePaths)
                 );
             }
         } catch (IOException e) { e.printStackTrace(); }

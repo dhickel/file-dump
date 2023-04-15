@@ -14,13 +14,15 @@ import java.util.concurrent.locks.LockSupport;
 
 public class QueuedFileReceiver implements Runnable {
     private final Socket socket;
+    private final ActivePaths activePaths;
     private final ByteBuffer buffer;
     private String fileName = "";
     private long offset = 0;
     private WriteQueue writeQueue;
 
-    public QueuedFileReceiver(Socket socket) throws SocketException {
+    public QueuedFileReceiver(Socket socket, ActivePaths activePaths) throws SocketException {
         this.socket = socket;
+        this.activePaths = activePaths;
         buffer = ByteBuffer.allocate(Settings.blockBufferSize);
         socket.setTcpNoDelay(false);
         if (Settings.socketBufferSize > 0) { socket.setReceiveBufferSize(Settings.socketBufferSize); }
@@ -32,17 +34,6 @@ public class QueuedFileReceiver implements Runnable {
         buffer.position(0);
     }
 
-    private File getFileLocation(String fileName, long fileSize) {
-        Path freePath = Main.activePaths.getPath(fileName, fileSize);
-        if (freePath == null) {
-            return null;
-        }
-        freePath = freePath.resolve(fileName);
-        if (freePath.toFile().exists() && !Settings.overWriteExisting) {
-            return null;
-        }
-        return new File(freePath + ".tmp");
-    }
 
     @Override
     public void run() {
@@ -55,17 +46,16 @@ public class QueuedFileReceiver implements Runnable {
             fileSize = socketIn.readLong();
 
             // Check for free space, send boolean to client if space not available, or file exists
-            File outputFile = getFileLocation(fileName, fileSize);
-            if (outputFile == null) {
+            Path freePath = activePaths.getPath(fileName, fileSize);
+            if (freePath == null) {
                 socketOut.writeBoolean(false);
                 socketOut.flush();
                 System.out.println("No space for, file already exists, or all paths in use: " + fileName);
                 return;
             }
-            Main.activeTransfers.put(fileName, outputFile.getParentFile().toPath());
-            System.out.println(outputFile.getParentFile().toPath());
 
             // Start writeQueue thread and inform client to begin
+            File outputFile = freePath.toFile();
             writeQueue = new WriteQueue(outputFile);
             new Thread(() -> writeQueue.run()).start();
             System.out.println("Receiving file: " + fileName +" to: " + outputFile.getParentFile());
@@ -73,9 +63,6 @@ public class QueuedFileReceiver implements Runnable {
             socketOut.flush();
 
             while (true) {
-                // Let server know it can send, so it does just fill up os network buffer
-                socketOut.writeBoolean(true);
-
                 // Submit any remaining buffer if server is finished sending
                 boolean finished = socketIn.readBoolean();
                 if (finished) {
@@ -93,24 +80,29 @@ public class QueuedFileReceiver implements Runnable {
                     submitChunk(false);
                 }
 
+                //Check for writeQueue error
                 if (writeQueue.getState() < 0) {
+                    writeQueue.close();
+                    activePaths.removePath(fileName);
                     System.out.println("Error writing file aborting....");
                     return;
                 }
             }
+
             // Wait for queue to complete it's writes, then close socket and cleanup
             while (true) {
                 if (writeQueue.getState() < 1) {
                     writeQueue.close();
+                    activePaths.removePath(fileName);
                     File finalFile = new File(outputFile.getParent(), fileName);
                     outputFile.renameTo(finalFile);
+
                     if (!finalFile.exists() || finalFile.length() != fileSize) {
-                        socketOut.writeBoolean(false); // Relay there as an issues
+                        socketOut.writeBoolean(false); // Relay there was an issue
                         throw new IllegalStateException("Output file does not exist, or is corrupted");
                     }
                     socketOut.writeBoolean(true); // Relay successful transfer
                     socketOut.flush();
-                    Main.activeTransfers.remove(fileName);
 
                     long seconds = (System.currentTimeMillis() - startTime) / 1000;
                     String metrics = "Finished receiving file: " + fileName + " to: " + outputFile.getParentFile() +
@@ -122,12 +114,12 @@ public class QueuedFileReceiver implements Runnable {
                 LockSupport.parkNanos(1_000_000 * 50);
             }
         } catch (IOException e) {
-            Main.activeTransfers.remove(fileName);
+            activePaths.removePath(fileName);
             System.out.println("Error in data stream or dropped connection. Aborting transfer of: " + fileName);
             writeQueue.close();
             e.printStackTrace();
         } catch (Exception e) {
-            Main.activeTransfers.remove(fileName);
+            activePaths.removePath(fileName);
             writeQueue.close();
             e.printStackTrace();
         }
