@@ -1,6 +1,6 @@
-/home/mindspice/code/Java/Projects/chia-plot-dump/plot-dump-server/src/main/java/dev/hickel/QueuedFileReceiver.java
-/home/mindspice/code/Java/Projects/chia-plot-dump/plot-dump-server/src/main/java/dev/hickel/FileReceiver.java
-/home/mindspice/code/Java/Projects/chia-plot-dump/plot-dump-server/src/main/java/dev/hickel/Settings.java
-/home/mindspice/code/Java/Projects/chia-plot-dump/plot-dump-server/src/main/java/dev/hickel/Main.java
-/home/mindspice/code/Java/Projects/chia-plot-dump/plot-dump-server/src/main/java/dev/hickel/WriteQueue.java
-/home/mindspice/code/Java/Projects/chia-plot-dump/plot-dump-server/src/main/java/dev/hickel/PathQueue.java
+/home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/Main.java
+/home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/WriteQueue.java
+/home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/QueuedFileReceiver.java
+/home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/ActivePaths.java
+/home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/Settings.java
+/home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/FileReceiver.java

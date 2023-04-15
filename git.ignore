@@ -124,6 +124,8 @@ local.properties
 hs_err_pid*
 
 ### Maven ###
+file-dump-server/target/
+file-dump-client/target/
 target/
 pom.xml.tag
 pom.xml.releaseBackup

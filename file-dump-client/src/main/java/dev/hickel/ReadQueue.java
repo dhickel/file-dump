@@ -10,10 +10,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 
 public class ReadQueue implements Runnable {
-    private final LinkedBlockingQueue<byte[]> writeQueue = new LinkedBlockingQueue<>(128);
+    private final LinkedBlockingQueue<byte[]> writeQueue = new LinkedBlockingQueue<>(Settings.readQueueSize);
     private final File file;
     private volatile int state = 2;
-    private final ByteBuffer buffer = ByteBuffer.allocate(Settings.blockSize);
 
     public ReadQueue(File inputFile) throws FileNotFoundException {
         this.file = inputFile;

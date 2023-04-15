@@ -21,9 +21,9 @@ public class Settings {
     public static volatile int serverPort = 9988;
     public static volatile int maxTransfers = 2;
     public static volatile int socketBufferSize = -1;
-    public static volatile int writeQueueSize = 1024;
-    public static volatile List<String> monitoredDirectories = List.of("/media/mindspice/plot");
-    public static volatile List<String> monitoredFileTypes = List.of("ckpt");
+    public static volatile int readQueueSize = 1024;
+    public static volatile List<String> monitoredDirectories = List.of();
+    public static volatile List<String> monitoredFileTypes = List.of();
     public static volatile int blockSize = 32768;
     public static volatile int chunkSize = 4194304;
     public static volatile int fileCheckInterval = 30;
@@ -49,7 +49,7 @@ public class Settings {
                 case "serverPort" -> serverPort = next.getValue().asInt();
                 case "maxTransfers" -> maxTransfers = next.getValue().asInt();
                 case "socketBufferSize" -> socketBufferSize = next.getValue().asInt();
-                case "writeQueueSize" -> writeQueueSize = next.getValue().asInt();
+                case "readQueueSize" -> readQueueSize = next.getValue().asInt();
                 case "monitoredDirectories" ->
                         monitoredDirectories = mapper.readValue(next.getValue().traverse(), TYPE_REF);
                 case "monitoredFileTypes" ->
@@ -71,7 +71,7 @@ public class Settings {
         sb.append("\n  serverPort: ").append(serverPort);
         sb.append("\n  maxTransfers: ").append(maxTransfers);
         sb.append("\n  socketBufferSize: ").append(socketBufferSize);
-        sb.append("\n  writeQueueSize: ").append(writeQueueSize);
+        sb.append("\n  readQueueSize: ").append(readQueueSize);
         sb.append("\n  monitoredDirectories: ").append(monitoredDirectories);
         sb.append("\n  monitoredFileTypes: ").append(monitoredFileTypes);
         sb.append("\n  blockSize: ").append(blockSize);
