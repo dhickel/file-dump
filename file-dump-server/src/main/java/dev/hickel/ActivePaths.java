@@ -80,7 +80,7 @@ public class ActivePaths {
                 FileStore fileStore = Files.getFileStore(path);
 
                 for (var file : path.toFile().listFiles()) {
-                    if (!file.isFile()) {continue;}
+                    if (!file.isFile()) { continue; }
                     if (Settings.deletedFileTypes.contains(getExt(file)) && file.length() >= Settings.deletionThreshHold) {
                         try {
                             long size = file.length();

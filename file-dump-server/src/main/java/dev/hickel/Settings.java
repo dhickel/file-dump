@@ -20,17 +20,17 @@ import java.util.List;
 public class Settings {
     public static volatile boolean separateThreadForWrite = false;
     public static volatile int queueSize = 8;
-    public static volatile List<Path> outputDirectories = List.of();
+    public static volatile List<Path> outputDirectories = List.of(Path.of("/mnt/42c5c6f4-3d60-4eda-980e-0da2ac5412b8"));
     public static volatile boolean oneTransferPerDirectory = true;
     public static volatile int port = 9988;
     public static volatile int socketBufferSize = 32768;
     public static volatile int blockBufferSize = 4194304;
-    public static volatile int writeBufferSize = -1;
+    public static volatile int writeBufferSize = 4194304;
     public static volatile boolean deleteForSpace = false;
     public static volatile List<String> deletedFileTypes = List.of();
     public static volatile List<Path> deletionDirectories = List.of();
     public static volatile long deletionThreshHold = Long.MAX_VALUE;
-    public static volatile boolean overWriteExisting = false;
+    public static volatile boolean overWriteExisting = true;
     private static volatile String lastCheckSum = "";
     private static final TypeReference<List<String>> TYPE_REF = new TypeReference<>() { };
 
@@ -120,5 +120,19 @@ public class Settings {
             return sb.toString();
         } catch (NoSuchAlgorithmException ignored) { }
         return "";
+    }
+
+    // sticking this here it is used for testing/development
+    public static String byteCheckSum(byte[] input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            byte[] hashBytes = md.digest(input);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException ignored) { }
+        return null;
     }
 }

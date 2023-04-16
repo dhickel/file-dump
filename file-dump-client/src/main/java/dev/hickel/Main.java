@@ -23,6 +23,10 @@ public class Main {
             throw new RuntimeException(e);
         }
 
+//        executor.submit(new QueuedFileSender(new File("/mnt/3973c5cd-34b9-4c41-b44a-77dd9b5fa616/control_sd15_depth.pth")));
+//        executor.submit(new QueuedFileSender(new File("/home/mindspice/Documents/eaton-9130-ups-pdm-user-guide-manual-164201798.pdf")));
+        executor.submit(new QueuedFileSender(new File("/mnt/3973c5cd-34b9-4c41-b44a-77dd9b5fa616/control_sd15_depth.pth")));
+
         // Give option to allow transfers to finish before closing
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             exit.set(true);
@@ -37,7 +41,7 @@ public class Main {
                         executor.shutdownNow();
                         sc.close();
                         // Everything uses try with resources, writer threads get terminated
-                        // idk why system.exit() is not working, will debug later
+                        // idk why system.exit() is not working, will debug latery
                         Runtime.getRuntime().halt(1);
                         break;
                     } else if (input.equals("n")) {
@@ -50,42 +54,42 @@ public class Main {
                 }
             } catch (InterruptedException ignored) { }
         }));
-
-        final Predicate<File> eligibleDirectory = file -> !activeTransfers.contains(file.getName())
-                && activeTransfers.size() < Settings.maxTransfers;
-
-        executor.scheduleAtFixedRate(() -> {
-            try {
-                if (!exit.get()) {
-                    Settings.load(); // Can just stick this here instead of giving it its own thread
-                    Settings.monitoredDirectories.stream()
-                            .map(File::new)
-                            .map(dir -> Optional.ofNullable(dir.listFiles()))
-                            .flatMap(optFiles -> optFiles.stream().flatMap(Stream::of))
-                            .filter(File::isFile)
-                            .filter(file -> Settings.monitoredFileTypes.contains(getExt(file)))
-                            .filter(eligibleDirectory)
-                            .forEach(file -> {
-                                try {
-                                    activeTransfers.add(file.getName());
-                                    executor.submit(Settings.separateThreadForReading
-                                                            ? new QueuedFileSender(file)
-                                                            : new FileSender(file)
-                                    );
-                                } catch (IOException e) {
-                                    System.out.println("Failed to connect to server: " + file);
-                                    ;
-                                }
-                            });
-                }
-            } catch (UnsupportedOperationException e) {
-                System.out.println("Error in permissions accessing a path,  make sure userspace has " +
-                                           "appropriate permissions, as this prevents the monitoring of file changes");
-                e.printStackTrace();
-            } catch (IOException e) {
-                System.out.println("Error hot loading config");
-            }
-        }, 0, Settings.fileCheckInterval, TimeUnit.SECONDS);
+//
+//        final Predicate<File> eligibleDirectory = file -> !activeTransfers.contains(file.getName())
+//                && activeTransfers.size() < Settings.maxTransfers;
+//
+//        executor.scheduleAtFixedRate(() -> {
+//            try {
+//                if (!exit.get()) {
+//                    Settings.load(); // Can just stick this here instead of giving it its own thread
+//                    Settings.monitoredDirectories.stream()
+//                            .map(File::new)
+//                            .map(dir -> Optional.ofNullable(dir.listFiles()))
+//                            .flatMap(optFiles -> optFiles.stream().flatMap(Stream::of))
+//                            .filter(File::isFile)
+//                            .filter(file -> Settings.monitoredFileTypes.contains(getExt(file)))
+//                            .filter(eligibleDirectory)
+//                            .forEach(file -> {
+//                                try {
+//                                    activeTransfers.add(file.getName());
+//                                    executor.submit(Settings.separateThreadForReading
+//                                                            ? new QueuedFileSender(file)
+//                                                            : new FileSender(file)
+//                                    );
+//                                } catch (IOException e) {
+//                                    System.out.println("Failed to connect to server: " + file);
+//                                    ;
+//                                }
+//                            });
+//                }
+//            } catch (UnsupportedOperationException e) {
+//                System.out.println("Error in permissions accessing a path,  make sure userspace has " +
+//                                           "appropriate permissions, as this prevents the monitoring of file changes");
+//                e.printStackTrace();
+//            } catch (IOException e) {
+//                System.out.println("Error hot loading config");
+//            }
+//        }, 0, Settings.fileCheckInterval, TimeUnit.SECONDS);
 
     }
 

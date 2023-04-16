@@ -77,6 +77,7 @@ public class FileReceiver implements Runnable {
                                 "\tTime: " + seconds + " Sec" +
                                 "\tSpeed: " + Math.round((double) fileSize / 1048576 / seconds) + " MiBs";
                         System.out.println(metrics);
+                        socket.close();
                         return;
                     }
 

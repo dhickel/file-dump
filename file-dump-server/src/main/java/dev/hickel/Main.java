@@ -24,6 +24,7 @@ public class Main {
         activePaths.replaceList(Settings.outputDirectories);
 
         // Give option to allow transfers to finish before closing
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             exit.set(true);
             try {
@@ -35,18 +36,13 @@ public class Main {
                     if (input.equals("y")) {
                         executor.shutdownNow();
                         System.out.println("Aborting existing transfers.");
-                        System.exit(1);
                         sc.close();
-                        // Everything uses try with resources, writer threads get terminated
-                        // idk why system.exit() is not working, will debug later
                         Runtime.getRuntime().halt(1);
-                        break;
                     } else if (input.equals("n")) {
                         System.out.println("Waiting up to 60 min for transfers to complete.");
                         executor.shutdown();
                         executor.awaitTermination(60, TimeUnit.MINUTES);
                         Runtime.getRuntime().halt(1);
-                        break;
                     }
                 }
             } catch (InterruptedException ignored) { }
@@ -71,8 +67,8 @@ public class Main {
                 Socket socket = serverSocket.accept();
                 if (exit.get()) { return; }
                 executor.submit(Settings.separateThreadForWrite
-                                        ? new QueuedFileReceiver(socket, activePaths)
-                                        : new FileReceiverTest(socket, activePaths)
+                                        ? new FileReceiverTest(socket, activePaths)
+                                        : new FileReceiver(socket, activePaths)
                 );
             }
         } catch (IOException e) { e.printStackTrace(); }

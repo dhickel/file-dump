@@ -3,36 +3,38 @@ package dev.hickel;
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 
 public class FileReceiverTest implements Runnable {
     private final Socket socket;
     private final ActivePaths activePaths;
-    private final ByteBuffer buffer;
+    private byte[] buffer;
+    private int bufferSize;
+    private CircularBufferQueue bufferQueue;
+    private final int blockBufferSize;
     private String fileName = "";
 
     public FileReceiverTest(Socket socket, ActivePaths activePaths) throws SocketException {
         this.socket = socket;
         this.activePaths = activePaths;
-        buffer = ByteBuffer.allocate(Settings.blockBufferSize);
+        buffer = new byte[Settings.blockBufferSize];
         socket.setTcpNoDelay(false);
         if (Settings.socketBufferSize > 0) { socket.setReceiveBufferSize(Settings.socketBufferSize); }
+        blockBufferSize = Settings.blockBufferSize;
     }
-
-//    private void writeFile(BufferedOutputStream outBuffer, boolean isFinished) throws IOException {
-//        outBuffer.write(buffer.array(), 0, buffer.position());
-//        buffer.position(0);
-//        if (isFinished) { outBuffer.flush(); }
-//    }
 
     @Override
     public void run() {
         long fileSize = 0;
         var startTime = System.currentTimeMillis();
         try (DataInputStream socketIn = new DataInputStream(socket.getInputStream());
-             DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream())) {
+             DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream())
+        ) {
 
             fileName = socketIn.readUTF();
             fileSize = socketIn.readLong();
@@ -46,55 +48,80 @@ public class FileReceiverTest implements Runnable {
                 return;
             }
 
-            // Inform client to begin
+            // Start writeQueue thread and inform client to begin
             File outputFile = freePath.toFile();
-            System.out.println("Receiving file: " + fileName +" to: " + outputFile.getParentFile());
+            bufferQueue = new CircularBufferQueue(outputFile);
+            new Thread(bufferQueue).start();
+
+            System.out.println("Receiving file: " + fileName + " to: " + outputFile.getParentFile());
             socketOut.writeBoolean(true);
+            socketOut.flush();
 
-            try (InputStream socketStream = new BufferedInputStream(socket.getInputStream());
-                 OutputStream filesStream = new BufferedOutputStream(new FileOutputStream(outputFile))) {
-
-
-
-                while (true) {
-                    // Submit any remaining buffer if server is finished sending, close socket and cleanup
-                    boolean finished = socketIn.readBoolean();
-                    if (finished) {
-                        filesStream.flush();
-                        activePaths.removePath(fileName);
-                        File finalFile = new File(outputFile.getParent(), fileName);
-                        outputFile.renameTo(finalFile);
-
-                        if (!finalFile.exists() || finalFile.length() != fileSize) {
-                            socketOut.writeBoolean(false); // Relay there as an issues
-                            throw new IllegalStateException("Output file does not exist");
-                        }
-                        socketOut.writeBoolean(true); // Relay successful transfer
-                        socketOut.flush();
-
-                        long seconds = (System.currentTimeMillis() - startTime) / 1000;
-                        String metrics = "Finished receiving file: " + fileName +" to: " + outputFile.getParentFile() +
-                                "\tTime: " + seconds + " Sec" +
-                                "\tSpeed: " + Math.round((double) fileSize / 1048576 / seconds) + " MiBs";
-                        System.out.println(metrics);
-                        return;
-                    }
-
-                    // Read buffer
-
-                    int dataByte;
-                    while((dataByte = socketStream.read()) != -1) {
-                        filesStream.write(dataByte);
-                    }
+            buffer = bufferQueue.getFirst();
+            int currOffset = 0;
+            while (true) {
+                // Submit any remaining buffer if server is finished sending
+                boolean finished = socketIn.readBoolean();
+                if (finished) {
+                    bufferQueue.swap(true, currOffset);
+                    break;
                 }
+
+                // Read buffer
+                bufferSize = socketIn.readInt();
+                System.arraycopy(socketIn.readNBytes(bufferSize),0,buffer,currOffset,bufferSize);
+                currOffset += bufferSize;
+
+                // write if full
+                if (currOffset == blockBufferSize) {
+                    buffer = bufferQueue.swap(false, blockBufferSize);
+                    currOffset = 0;
+                }
+
+                // Check for buffer error
+                if (bufferQueue.getState() < 0) {
+                    bufferQueue.close();
+                    activePaths.removePath(fileName);
+                    System.out.println("Error writing file aborting....");
+                    return;
+                }
+            }
+
+            // Wait for queue to complete it's writes, then close socket and cleanup
+            while (true) {
+                if (bufferQueue.getState() < 1) {
+                    bufferQueue.close();
+                    activePaths.removePath(fileName);
+                    File finalFile = new File(outputFile.getParent(), fileName);
+                    outputFile.renameTo(finalFile);
+
+                    if (!finalFile.exists() || finalFile.length() != fileSize) {
+                        socketOut.writeBoolean(false); // Relay there was an issue
+                        throw new IllegalStateException("Output file does not exist, or is corrupted");
+                    }
+                    socketOut.writeBoolean(true); // Relay successful transfer
+                    socketOut.flush();
+
+                    long seconds = (System.currentTimeMillis() - startTime) / 1000;
+                    String metrics = "Finished receiving file: " + fileName + " to: " + outputFile.getParentFile() +
+                            "\tTime: " + seconds + " Sec" +
+                            "\tSpeed: " + Math.round((double) fileSize / 1048576 / seconds) + " MiBs";
+                    System.out.println(metrics);
+                    socket.close();
+                    return;
+                }
+                LockSupport.parkNanos(1_000_000 * 50);
             }
         } catch (IOException e) {
             activePaths.removePath(fileName);
-            System.out.println("Error encountered aborting transfer of: " + fileName);
+            bufferQueue.close();
+            System.out.println("Error in data stream or dropped connection. Aborting transfer of: " + fileName);
             e.printStackTrace();
         } catch (Exception e) {
             activePaths.removePath(fileName);
+            bufferQueue.close();
             e.printStackTrace();
         }
     }
 }
+
