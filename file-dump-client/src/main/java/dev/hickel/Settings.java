@@ -21,7 +21,7 @@ public class Settings {
     public static volatile int serverPort = 9988;
     public static volatile int maxTransfers = 3;
     public static volatile int socketBufferSize = -1;
-    public static volatile int readQueueSize = 1024;
+    public static volatile int readQueueSize = 8;
     public static volatile List<String> monitoredDirectories = List.of();
     public static volatile List<String> monitoredFileTypes = List.of();
     public static volatile int blockSize = 32768;
@@ -32,13 +32,13 @@ public class Settings {
     private static final TypeReference<List<String>> TYPE_REF = new TypeReference<>() { };
 
     public static void load() throws IOException {
-//        String config = System.getProperty("user.dir") + File.separator + "config.yaml";
-//        File configFile = Path.of(config).toFile();
-//        String configChecksum = getCheckSum(configFile);
-//        if (lastCheckSum.equals(configChecksum)) { return; }
-//        lastCheckSum = configChecksum;
-//
-//        var mapper = new ObjectMapper(new YAMLFactory());
+        String config = System.getProperty("user.dir") + File.separator + "config.yaml";
+        File configFile = Path.of(config).toFile();
+        String configChecksum = getCheckSum(configFile);
+        if (lastCheckSum.equals(configChecksum)) { return; }
+        lastCheckSum = configChecksum;
+
+        var mapper = new ObjectMapper(new YAMLFactory());
 //        JsonNode node = mapper.readTree(configFile);
 //        var iter = node.fields();
 //        while (iter.hasNext()) {
@@ -61,7 +61,7 @@ public class Settings {
 //                default -> System.out.println("Unrecognized field name in config");
 //            }
 //        }
-        //System.out.println(printConfig());
+//        System.out.println(printConfig());
     }
 
     private static String printConfig() {

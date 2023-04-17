@@ -16,48 +16,20 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(Settings.maxTransfers);
-        AtomicBoolean exit = new AtomicBoolean(false);
 
         try { Settings.load(); } catch (IOException e) {
             System.out.println("Failed to load config, exiting...");
             throw new RuntimeException(e);
         }
 
-//        executor.submit(new QueuedFileSender(new File("/mnt/3973c5cd-34b9-4c41-b44a-77dd9b5fa616/control_sd15_depth.pth")));
-//        executor.submit(new QueuedFileSender(new File("/home/mindspice/Documents/eaton-9130-ups-pdm-user-guide-manual-164201798.pdf")));
-        executor.submit(new QueuedFileSender(new File("/mnt/3973c5cd-34b9-4c41-b44a-77dd9b5fa616/control_sd15_depth.pth")));
+        executor.submit(new FileSender(new File("/media/mindspice/Games/sdiff2/models/Stable-diffusion/sd-v1-4-full-ema.ckpt")));
 
-        // Give option to allow transfers to finish before closing
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            exit.set(true);
-            try {
-                Scanner sc = new Scanner(System.in);
-                String input = "";
-                while (true) {
-                    System.out.println("Abort Existing Transfers? (y/n)");
-                    input = sc.nextLine();
-                    if (input.equals("y")) {
-                        System.out.println("Aborting existing transfers.");
-                        executor.shutdownNow();
-                        sc.close();
-                        // Everything uses try with resources, writer threads get terminated
-                        // idk why system.exit() is not working, will debug latery
-                        Runtime.getRuntime().halt(1);
-                        break;
-                    } else if (input.equals("n")) {
-                        System.out.println("Waiting up to 60 min for transfers to complete.");
-                        executor.shutdown();
-                        executor.awaitTermination(60, TimeUnit.MINUTES);
-                        Runtime.getRuntime().halt(1);
-                        break;
-                    }
-                }
-            } catch (InterruptedException ignored) { }
-        }));
-//
-//        final Predicate<File> eligibleDirectory = file -> !activeTransfers.contains(file.getName())
-//                && activeTransfers.size() < Settings.maxTransfers;
-//
+
+        Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdownNow));
+
+        final Predicate<File> eligibleDirectory = file -> !activeTransfers.contains(file.getName())
+                && activeTransfers.size() < Settings.maxTransfers;
+
 //        executor.scheduleAtFixedRate(() -> {
 //            try {
 //                if (!exit.get()) {
@@ -90,11 +62,10 @@ public class Main {
 //                System.out.println("Error hot loading config");
 //            }
 //        }, 0, Settings.fileCheckInterval, TimeUnit.SECONDS);
-
     }
 
-    private static String getExt(File file) {
-        return file.getName().substring(file.getName().lastIndexOf('.') + 1);
-    }
+        private static String getExt (File file){
+            return file.getName().substring(file.getName().lastIndexOf('.') + 1);
+        }
 
-}
+    }

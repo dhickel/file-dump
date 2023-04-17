@@ -17,36 +17,14 @@ public class Main {
         final ExecutorService executor = Executors.newCachedThreadPool();
         AtomicBoolean exit = new AtomicBoolean(false);
 
-        try { Settings.load(); } catch (IOException e) {
-            System.out.println("Failed to load config, exiting...");
-            throw new RuntimeException(e);
-        }
+//        try { Settings.load(); } catch (IOException e) {
+//            System.out.println("Failed to load config, exiting...");
+//            throw new RuntimeException(e);
+//        }
         activePaths.replaceList(Settings.outputDirectories);
 
         // Give option to allow transfers to finish before closing
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            exit.set(true);
-            try {
-                Scanner sc = new Scanner(System.in);
-                String input = "";
-                while (true) {
-                    System.out.println("\nAbort Existing Transfers? (y/n)");
-                    input = sc.nextLine();
-                    if (input.equals("y")) {
-                        executor.shutdownNow();
-                        System.out.println("Aborting existing transfers.");
-                        sc.close();
-                        Runtime.getRuntime().halt(1);
-                    } else if (input.equals("n")) {
-                        System.out.println("Waiting up to 60 min for transfers to complete.");
-                        executor.shutdown();
-                        executor.awaitTermination(60, TimeUnit.MINUTES);
-                        Runtime.getRuntime().halt(1);
-                    }
-                }
-            } catch (InterruptedException ignored) { }
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdownNow));
 
         executor.submit(() -> {
             while (!exit.get()) {
@@ -66,11 +44,16 @@ public class Main {
             while (!exit.get()) {
                 Socket socket = serverSocket.accept();
                 if (exit.get()) { return; }
-                executor.submit(Settings.separateThreadForWrite
-                                        ? new FileReceiverTest(socket, activePaths)
-                                        : new FileReceiver(socket, activePaths)
-                );
+                switch(Settings.writeStyle) {
+                    case 1 ->  executor.submit(new FileReceiver(socket, activePaths));
+                    case 2 ->  executor.submit(new QueuedFileReceiver(socket, activePaths));
+                    case 3 ->  executor.submit(new CircularFileReceiver(socket, activePaths));
+                    default -> System.out.println("Write Style must be 1-3, fix config to continue.");
+                }
+                Thread.sleep(1000); // Sleep a little before accepting another connection
             }
-        } catch (IOException e) { e.printStackTrace(); }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

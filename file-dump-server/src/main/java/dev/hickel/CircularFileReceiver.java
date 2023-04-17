@@ -4,13 +4,10 @@ import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 
-public class FileReceiverTest implements Runnable {
+public class CircularFileReceiver implements Runnable {
     private final Socket socket;
     private final ActivePaths activePaths;
     private byte[] buffer;
@@ -19,7 +16,7 @@ public class FileReceiverTest implements Runnable {
     private final int blockBufferSize;
     private String fileName = "";
 
-    public FileReceiverTest(Socket socket, ActivePaths activePaths) throws SocketException {
+    public CircularFileReceiver(Socket socket, ActivePaths activePaths) throws SocketException {
         this.socket = socket;
         this.activePaths = activePaths;
         buffer = new byte[Settings.blockBufferSize];
@@ -33,8 +30,7 @@ public class FileReceiverTest implements Runnable {
         long fileSize = 0;
         var startTime = System.currentTimeMillis();
         try (DataInputStream socketIn = new DataInputStream(socket.getInputStream());
-             DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream())
-        ) {
+             DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream())) {
 
             fileName = socketIn.readUTF();
             fileSize = socketIn.readLong();
@@ -52,7 +48,6 @@ public class FileReceiverTest implements Runnable {
             File outputFile = freePath.toFile();
             bufferQueue = new CircularBufferQueue(outputFile);
             new Thread(bufferQueue).start();
-
             System.out.println("Receiving file: " + fileName + " to: " + outputFile.getParentFile());
             socketOut.writeBoolean(true);
             socketOut.flush();
@@ -63,18 +58,18 @@ public class FileReceiverTest implements Runnable {
                 // Submit any remaining buffer if server is finished sending
                 boolean finished = socketIn.readBoolean();
                 if (finished) {
-                    bufferQueue.swap(true, currOffset);
+                    bufferQueue.swap(buffer, true, currOffset);
                     break;
                 }
 
                 // Read buffer
                 bufferSize = socketIn.readInt();
-                System.arraycopy(socketIn.readNBytes(bufferSize),0,buffer,currOffset,bufferSize);
+                System.arraycopy(socketIn.readNBytes(bufferSize), 0, buffer, currOffset, bufferSize);
                 currOffset += bufferSize;
 
                 // write if full
                 if (currOffset == blockBufferSize) {
-                    buffer = bufferQueue.swap(false, blockBufferSize);
+                    buffer = bufferQueue.swap(buffer, false, blockBufferSize);
                     currOffset = 0;
                 }
 
@@ -112,15 +107,13 @@ public class FileReceiverTest implements Runnable {
                 }
                 LockSupport.parkNanos(1_000_000 * 50);
             }
-        } catch (IOException e) {
-            activePaths.removePath(fileName);
-            bufferQueue.close();
-            System.out.println("Error in data stream or dropped connection. Aborting transfer of: " + fileName);
-            e.printStackTrace();
         } catch (Exception e) {
             activePaths.removePath(fileName);
             bufferQueue.close();
             e.printStackTrace();
+            try {
+                socket.close();
+            } catch (IOException ignored) { }
         }
     }
 }

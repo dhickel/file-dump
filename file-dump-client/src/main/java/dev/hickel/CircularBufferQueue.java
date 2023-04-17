@@ -1,15 +1,7 @@
 package dev.hickel;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.io.*;
 import java.util.concurrent.atomic.AtomicIntegerArray;
-import java.util.concurrent.locks.LockSupport;
 
 
 public class CircularBufferQueue implements Runnable {
@@ -17,35 +9,36 @@ public class CircularBufferQueue implements Runnable {
     private final AtomicIntegerArray indexFlags;
     private volatile int head;
     private volatile int tail;
-    private volatile int endBufferSize = Settings.blockBufferSize;
-    private final int blockBufferSize = Settings.blockBufferSize;
-    private final int capacity = Settings.queueSize;
+    private volatile int lastBufferSize = Settings.chunkSize;
+    private final int chunkSize = Settings.chunkSize;
+    private final int capacity = Settings.readQueueSize;
     private volatile boolean finished = false;
     private final File file;
     private volatile int state = 1;
+    private volatile int pollCount = 0;
+    private volatile int putCount =0;
 
     public CircularBufferQueue(File file) {
         this.file = file;
-        byteQueue = new byte[Settings.queueSize][Settings.blockBufferSize];
-        indexFlags = new AtomicIntegerArray(Settings.queueSize);
+        byteQueue = new byte[Settings.readQueueSize][Settings.chunkSize];
+        indexFlags = new AtomicIntegerArray(Settings.readQueueSize);
         head = 0;
         tail = 0;
     }
 
-    public byte[] swap(byte[] buffer, boolean isLast, int size) {
+    public byte[] swap(byte[] buffer, int size) {
+        putCount++;
         int currTail = tail;
         while (indexFlags.get((currTail + 1) % capacity) > 0) {
             Thread.onSpinWait();
         }
         byteQueue[currTail] = buffer;
         indexFlags.set(currTail, 2);
-        if (isLast) {
-            finished = true;
-            endBufferSize = size;
-        }
+        lastBufferSize = size;
         int nextTail = (currTail + 1) % capacity; // inc safe since only this thread mutates
         indexFlags.set(nextTail, 1);
         tail = nextTail;
+        System.out.println("Swap | Head:" + head + "\tTail:" + tail +"\t\tFlags:" + indexFlags);
         return byteQueue[nextTail];
     }
 
@@ -59,6 +52,8 @@ public class CircularBufferQueue implements Runnable {
     }
 
     public byte[] poll() {
+        pollCount++;
+        System.out.println("Poll | Head:" + head + "\tTail:" + tail +"\t\tFlags:" + indexFlags);
         int currHead = head % capacity;
         while (isEmpty() || indexFlags.get(currHead) < 2) {
             Thread.onSpinWait();
@@ -66,7 +61,15 @@ public class CircularBufferQueue implements Runnable {
         return byteQueue[currHead];
     }
 
-    public void wrote() {
+    public boolean onePollLeft() {
+        return finished && (head  ==  tail -1);
+    }
+
+    public int lastBytes() {
+        return lastBufferSize;
+    }
+
+    public void finishedRead() {
         int oldHead = head;
         head = (oldHead + 1) % capacity; //inc  safe since only this thread mutates
         indexFlags.set(oldHead, 0);
@@ -80,27 +83,27 @@ public class CircularBufferQueue implements Runnable {
         state = 0;
     }
 
+    public void printBufferState() {
+        System.out.println("Swap | Head:" + head + "\tTail:" + tail +"\t\tFlags:" + indexFlags);
+        System.out.println("poll: " + pollCount + "\tput:" + putCount);
+    }
+
     @Override
     public void run() {
-        try (FileOutputStream outputFile = new FileOutputStream(file);
-             BufferedOutputStream bufferStream = Settings.writeBufferSize < 0
-                     ? new BufferedOutputStream(outputFile)
-                     : new BufferedOutputStream(outputFile, Settings.writeBufferSize)) {
-
-            while (state > 0) {
-                byte[] nextWrite = poll();
-                if (finished && (head == (tail - 1))) {
-                    bufferStream.write(nextWrite, 0, endBufferSize);
-                    bufferStream.flush();
-                    state = 0;
+        byte[] buffer = getFirst();
+        try (FileInputStream inputFile = new FileInputStream(file)) {
+            int bytesRead;
+            while ((bytesRead = inputFile.read(buffer, 0, chunkSize)) != -1 && state > 0) {
+                if (bytesRead == chunkSize) {
+                    buffer = swap(buffer,bytesRead);
                 } else {
-                    bufferStream.write(nextWrite, 0, blockBufferSize);
+                    swap(buffer, bytesRead);
                 }
-                wrote();
             }
+            finished = true;
+
         } catch (IOException e) {
-            state = -1;
-            System.out.println("write error");
+            throw new RuntimeException(e);
         }
     }
 }

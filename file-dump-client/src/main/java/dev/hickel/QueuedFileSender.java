@@ -26,7 +26,6 @@ public class QueuedFileSender implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("here");
         try (Socket socket = new Socket(Settings.serverAddress, Settings.serverPort);
              DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
              DataInputStream socketIn = new DataInputStream(socket.getInputStream());) {

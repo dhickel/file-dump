@@ -18,10 +18,10 @@ import java.util.List;
 
 
 public class Settings {
-    public static volatile boolean separateThreadForWrite = false;
+    public static volatile int writeStyle = 3;
     public static volatile int queueSize = 8;
     public static volatile List<Path> outputDirectories = List.of(Path.of("/mnt/42c5c6f4-3d60-4eda-980e-0da2ac5412b8"));
-    public static volatile boolean oneTransferPerDirectory = true;
+    public static volatile boolean oneTransferPerDirectory = false;
     public static volatile int port = 9988;
     public static volatile int socketBufferSize = 32768;
     public static volatile int blockBufferSize = 4194304;
@@ -35,36 +35,36 @@ public class Settings {
     private static final TypeReference<List<String>> TYPE_REF = new TypeReference<>() { };
 
     public static boolean load() throws IOException {
-        String config = System.getProperty("user.dir") + File.separator + "config.yaml";
-        File configFile = Path.of(config).toFile();
-        String configChecksum = getCheckSum(configFile);
-        if (lastCheckSum.equals(configChecksum)) { return false; }
-        lastCheckSum = configChecksum;
-
-        var mapper = new ObjectMapper(new YAMLFactory());
-        JsonNode node = mapper.readTree(configFile);
-        var iter = node.fields();
-        while (iter.hasNext()) {
-            var next = iter.next();
-            switch (next.getKey()) {
-                case "separateThreadForWrite" -> separateThreadForWrite = next.getValue().asBoolean();
-                case "queueSize" -> queueSize = next.getValue().asInt();
-                case "outputDirectories" ->
-                        outputDirectories = stringsToPaths(mapper.readValue(next.getValue().traverse(), TYPE_REF));
-                case "limitOneTransferPerDirectory" -> oneTransferPerDirectory = next.getValue().asBoolean();
-                case "port" -> port = next.getValue().asInt();
-                case "socketBufferSize" -> socketBufferSize = next.getValue().asInt();
-                case "blockBufferSize" -> blockBufferSize = next.getValue().asInt();
-                case "writeBufferSize" -> writeBufferSize = next.getValue().asInt();
-                case "deleteForSpace" -> deleteForSpace = next.getValue().asBoolean();
-                case "deletedFileTypes" -> deletedFileTypes = mapper.readValue(next.getValue().traverse(), TYPE_REF);
-                case "deletionDirectories" ->
-                        deletionDirectories = stringsToPaths(mapper.readValue(next.getValue().traverse(), TYPE_REF));
-                case "deletionThreshHold" -> deletionThreshHold = (long) next.getValue().asInt() * 1048576;
-                case "overWriteExisting" -> overWriteExisting = next.getValue().asBoolean();
-                default -> System.out.println("Unrecognized field name in config");
-            }
-        }
+//        String config = System.getProperty("user.dir") + File.separator + "config.yaml";
+//        File configFile = Path.of(config).toFile();
+//        String configChecksum = getCheckSum(configFile);
+//        if (lastCheckSum.equals(configChecksum)) { return false; }
+//        lastCheckSum = configChecksum;
+//
+//        var mapper = new ObjectMapper(new YAMLFactory());
+//        JsonNode node = mapper.readTree(configFile);
+//        var iter = node.fields();
+//        while (iter.hasNext()) {
+//            var next = iter.next();
+//            switch (next.getKey()) {
+//                case "writeStyle" -> writeStyle = next.getValue().asInt();
+//                case "queueSize" -> queueSize = next.getValue().asInt();
+//                case "outputDirectories" ->
+//                        outputDirectories = stringsToPaths(mapper.readValue(next.getValue().traverse(), TYPE_REF));
+//                case "limitOneTransferPerDirectory" -> oneTransferPerDirectory = next.getValue().asBoolean();
+//                case "port" -> port = next.getValue().asInt();
+//                case "socketBufferSize" -> socketBufferSize = next.getValue().asInt();
+//                case "blockBufferSize" -> blockBufferSize = next.getValue().asInt();
+//                case "writeBufferSize" -> writeBufferSize = next.getValue().asInt();
+//                case "deleteForSpace" -> deleteForSpace = next.getValue().asBoolean();
+//                case "deletedFileTypes" -> deletedFileTypes = mapper.readValue(next.getValue().traverse(), TYPE_REF);
+//                case "deletionDirectories" ->
+//                        deletionDirectories = stringsToPaths(mapper.readValue(next.getValue().traverse(), TYPE_REF));
+//                case "deletionThreshHold" -> deletionThreshHold = (long) next.getValue().asInt() * 1048576;
+//                case "overWriteExisting" -> overWriteExisting = next.getValue().asBoolean();
+//                default -> System.out.println("Unrecognized field name in config");
+//            }
+//        }
         System.out.println(printConfig());
         return true;
     }
@@ -85,7 +85,7 @@ public class Settings {
 
     private static String printConfig() {
         final StringBuilder sb = new StringBuilder("Loaded Config: ");
-        sb.append("\n  separateThreadForWrite: ").append(separateThreadForWrite);
+        sb.append("\n  writeStyle: ").append(writeStyle);
         sb.append("\n  queueSize: ").append(queueSize);
         sb.append("\n  outputDirectories: ").append(outputDirectories);
         sb.append("\n  limitOneTransferPerDirectory: ").append(oneTransferPerDirectory);
