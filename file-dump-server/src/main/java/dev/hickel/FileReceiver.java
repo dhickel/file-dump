@@ -5,27 +5,23 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.concurrent.locks.LockSupport;
 
 
 public class FileReceiver implements Runnable {
     private final Socket socket;
     private final ActivePaths activePaths;
-    private final ByteBuffer buffer;
+   // private final ByteBuffer buffer;
     private String fileName = "";
 
     public FileReceiver(Socket socket, ActivePaths activePaths) throws SocketException {
         this.socket = socket;
         this.activePaths = activePaths;
-        buffer = ByteBuffer.allocate(Settings.blockBufferSize);
-        socket.setTcpNoDelay(false);
+      //  buffer = ByteBuffer.allocate(Settings.blockBufferSize);
+        socket.setSoTimeout(30000);
         if (Settings.socketBufferSize > 0) { socket.setReceiveBufferSize(Settings.socketBufferSize); }
     }
 
-    private void writeFile(BufferedOutputStream outBuffer, boolean isFinished) throws IOException {
-        outBuffer.write(buffer.array(), 0, buffer.position());
-        buffer.position(0);
-        if (isFinished) { outBuffer.flush(); }
-    }
 
     @Override
     public void run() {
@@ -57,10 +53,11 @@ public class FileReceiver implements Runnable {
                          : new BufferedOutputStream(outFileStream, Settings.writeBufferSize)) {
 
                 while (true) {
-                    // Submit any remaining buffer if server is finished sending, close socket and cleanup
+
+                    // FLush buffer to disk, and clean up
                     boolean finished = socketIn.readBoolean();
                     if (finished) {
-                        writeFile(bufferStream, true);
+                        bufferStream.flush();
                         activePaths.removePath(fileName);
                         File finalFile = new File(outputFile.getParent(), fileName);
                         outputFile.renameTo(finalFile);
@@ -77,28 +74,29 @@ public class FileReceiver implements Runnable {
                                 "\tTime: " + seconds + " Sec" +
                                 "\tSpeed: " + Math.round((double) fileSize / 1048576 / seconds) + " MiBs";
                         System.out.println(metrics);
-                        socket.close();
                         return;
                     }
 
                     // Read buffer
                     int bytesRead = socketIn.readInt();
-                    byte[] bytesIn = socketIn.readNBytes(bytesRead);
-                    buffer.put(bytesIn);
-
-                    //Wait until buffer reaches desired chunkSize then write to disk
-                    if (buffer.position() >= buffer.capacity()) {
-                        writeFile(bufferStream, false);
-                    }
+                    bufferStream.write(socketIn.readNBytes(bytesRead), 0, bytesRead);
                 }
             }
         } catch (IOException e) {
             activePaths.removePath(fileName);
             System.out.println("Error encountered aborting transfer of: " + fileName);
             e.printStackTrace();
+            try { socket.close();
+            } catch (IOException ee) { System.out.println("Error closing socket"); }
         } catch (Exception e) {
             activePaths.removePath(fileName);
             e.printStackTrace();
+            try { socket.close();
+            } catch (IOException ee) { System.out.println("Error closing socket"); }
+        } finally {
+            if (socket != null) {
+                try { socket.close(); } catch (IOException e) { System.out.println("Error closing socket"); }
+            }
         }
     }
 }

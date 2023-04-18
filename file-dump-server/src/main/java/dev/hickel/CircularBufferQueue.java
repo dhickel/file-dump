@@ -89,7 +89,7 @@ public class CircularBufferQueue implements Runnable {
 
             while (state > 0) {
                 byte[] nextWrite = poll();
-                if (finished && (head == (tail - 1))) {
+                if (finished && ((head + 1) % capacity == tail)) {
                     bufferStream.write(nextWrite, 0, endBufferSize);
                     bufferStream.flush();
                     state = 0;

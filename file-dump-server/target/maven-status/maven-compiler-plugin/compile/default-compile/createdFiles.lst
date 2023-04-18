@@ -1,8 +1,6 @@
-dev/hickel/CircularFileReceiver.class
 dev/hickel/FileReceiver.class
 dev/hickel/Settings$1.class
 dev/hickel/QueuedFileReceiver.class
-dev/hickel/WriteQueue.class
 dev/hickel/Main.class
 dev/hickel/CircularBufferQueue.class
 dev/hickel/Settings.class

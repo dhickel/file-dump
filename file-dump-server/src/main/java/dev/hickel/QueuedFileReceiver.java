@@ -1,38 +1,30 @@
 package dev.hickel;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.Arrays;
+import java.time.Instant;
 import java.util.concurrent.locks.LockSupport;
 
 
 public class QueuedFileReceiver implements Runnable {
     private final Socket socket;
     private final ActivePaths activePaths;
-    private final ByteBuffer buffer;
+    private byte[] buffer;
+
+    private CircularBufferQueue bufferQueue;
+    private final int blockBufferSize;
     private String fileName = "";
-    private WriteQueue writeQueue;
 
     public QueuedFileReceiver(Socket socket, ActivePaths activePaths) throws SocketException {
         this.socket = socket;
         this.activePaths = activePaths;
-        buffer = ByteBuffer.allocate(Settings.blockBufferSize);
-        socket.setTcpNoDelay(false);
+        buffer = new byte[Settings.blockBufferSize];
+        socket.setSoTimeout(60000);
         if (Settings.socketBufferSize > 0) { socket.setReceiveBufferSize(Settings.socketBufferSize); }
+        blockBufferSize = Settings.blockBufferSize;
     }
-
-    private void submitChunk(boolean isFinalChunk) {
-        writeQueue.submitChunk(Arrays.copyOf(buffer.array(), buffer.position()));
-        if (isFinalChunk) { writeQueue.setFinished(); }
-        buffer.position(0);
-    }
-
 
     @Override
     public void run() {
@@ -55,33 +47,37 @@ public class QueuedFileReceiver implements Runnable {
 
             // Start writeQueue thread and inform client to begin
             File outputFile = freePath.toFile();
-            writeQueue = new WriteQueue(outputFile);
-            new Thread(() -> writeQueue.run()).start();
-            System.out.println("Receiving file: " + fileName +" to: " + outputFile.getParentFile());
+            bufferQueue = new CircularBufferQueue(outputFile);
+            new Thread(bufferQueue).start();
+            System.out.println("Receiving file: " + fileName + " to: " + outputFile.getParentFile());
             socketOut.writeBoolean(true);
             socketOut.flush();
 
+            buffer = bufferQueue.getFirst();
+            int currOffset = 0;
+            int bufferSize;
             while (true) {
                 // Submit any remaining buffer if server is finished sending
                 boolean finished = socketIn.readBoolean();
                 if (finished) {
-                    submitChunk(true);
+                    bufferQueue.swap(buffer, true, currOffset);
                     break;
                 }
 
                 // Read buffer
-                int bytesRead = socketIn.readInt();
-                byte[] bytesIn = socketIn.readNBytes(bytesRead);
-                buffer.put(bytesIn);
+                bufferSize = socketIn.readInt();
+                System.arraycopy(socketIn.readNBytes(bufferSize), 0, buffer, currOffset, bufferSize);
+                currOffset += bufferSize;
 
-                //Wait until buffer reaches desired chunkSize then write to disk
-                if (buffer.position() >= buffer.capacity()) {
-                    submitChunk(false);
+                // write if full
+                if (currOffset == blockBufferSize) {
+                    buffer = bufferQueue.swap(buffer, false, blockBufferSize);
+                    currOffset = 0;
                 }
 
-                //Check for writeQueue error
-                if (writeQueue.getState() < 0) {
-                    writeQueue.close();
+                // Check for buffer error
+                if (bufferQueue.getState() < 0) {
+                    bufferQueue.close();
                     activePaths.removePath(fileName);
                     System.out.println("Error writing file aborting....");
                     return;
@@ -90,38 +86,40 @@ public class QueuedFileReceiver implements Runnable {
 
             // Wait for queue to complete it's writes, then close socket and cleanup
             while (true) {
-                if (writeQueue.getState() < 1) {
-                    writeQueue.close();
+                if (bufferQueue.getState() < 1) {
                     activePaths.removePath(fileName);
                     File finalFile = new File(outputFile.getParent(), fileName);
                     outputFile.renameTo(finalFile);
 
                     if (!finalFile.exists() || finalFile.length() != fileSize) {
                         socketOut.writeBoolean(false); // Relay there was an issue
+                        socketOut.close();
                         throw new IllegalStateException("Output file does not exist, or is corrupted");
                     }
                     socketOut.writeBoolean(true); // Relay successful transfer
                     socketOut.flush();
+                    bufferQueue.close();
 
                     long seconds = (System.currentTimeMillis() - startTime) / 1000;
                     String metrics = "Finished receiving file: " + fileName + " to: " + outputFile.getParentFile() +
                             "\tTime: " + seconds + " Sec" +
                             "\tSpeed: " + Math.round((double) fileSize / 1048576 / seconds) + " MiBs";
                     System.out.println(metrics);
-                    socket.close();
                     return;
                 }
                 LockSupport.parkNanos(1_000_000 * 50);
             }
-        } catch (IOException e) {
-            activePaths.removePath(fileName);
-            System.out.println("Error in data stream or dropped connection. Aborting transfer of: " + fileName);
-            writeQueue.close();
-            e.printStackTrace();
         } catch (Exception e) {
+            System.out.println(Instant.now().getEpochSecond());
             activePaths.removePath(fileName);
-            writeQueue.close();
+            bufferQueue.close();
             e.printStackTrace();
+            try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"); }
+        } finally {
+            if (socket != null) {
+                try { socket.close(); } catch (IOException e) { System.out.println("Error closing socket"); }
+            }
         }
     }
 }
+

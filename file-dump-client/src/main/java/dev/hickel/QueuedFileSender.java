@@ -11,8 +11,7 @@ public class QueuedFileSender implements Runnable {
     private final File file;
     private final int chunkSize;
     private final int blockSize;
-    private final ReadQueue readQueue;
-    private Thread readerThread;
+    private final Socket socket;
 
     public QueuedFileSender(File file) throws IOException {
         fileSize = file.length();
@@ -20,18 +19,15 @@ public class QueuedFileSender implements Runnable {
         this.file = file;
         chunkSize = Settings.chunkSize;
         blockSize = Settings.blockSize;
-        readQueue = new ReadQueue(file);
-
+        socket = new Socket(Settings.serverAddress, Settings.serverPort);
+        socket.setSoTimeout(60000);
     }
 
     @Override
     public void run() {
-        try (Socket socket = new Socket(Settings.serverAddress, Settings.serverPort);
-             DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
-             DataInputStream socketIn = new DataInputStream(socket.getInputStream());) {
+        try (DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
+             DataInputStream socketIn = new DataInputStream(socket.getInputStream())) {
 
-            socket.setTcpNoDelay(false);
-            if (Settings.socketBufferSize > 0) { socket.setSendBufferSize(Settings.socketBufferSize); }
             // Send file info
             socketOut.writeUTF(fileName);
             socketOut.writeLong(fileSize);
@@ -45,53 +41,74 @@ public class QueuedFileSender implements Runnable {
                 return;
             }
 
-            Thread writerThread = new Thread(readQueue);
-            writerThread.start();
-
+            CircularBufferQueue bufferQueue = new CircularBufferQueue(file);
+            new Thread(bufferQueue).start();
             System.out.println("Started transfer of file: " + fileName);
 
-            while (true) {
-                byte[] byteBlock = readQueue.getNextChunk();
-                int blockLength = byteBlock.length;
-                if (blockLength == 0) { break; }
-                for (int i = 0; blockLength > 0; i += blockSize) {
-                    int byteSize = Math.min(blockSize, blockLength); //calc end offset, EOF is smaller
-                    socketOut.writeBoolean(false); // Relay EOF = false;
-                    socketOut.writeInt(byteSize);
-                    socketOut.write(byteBlock, i, byteSize);
+            var total = 0;
+            byte[] currBuffer;
+            while (!bufferQueue.onePollLeft()) {
+                currBuffer = bufferQueue.poll();
+                for (int i = 0; i < chunkSize; i += blockSize) {
+                    socketOut.writeBoolean(false);
+                    socketOut.writeInt(blockSize);
+                    socketOut.write(currBuffer, i, blockSize);
                     socketOut.flush();
-                    blockLength -= byteSize;
+                    total += blockSize;
                 }
+                bufferQueue.finishedRead();
             }
 
-            socketOut.writeBoolean(true); // Relay EOF = true;
+            // Last buffer is mostly likely not full, poll and do an extra iteration if needed
+            // that is the partial block size
+            currBuffer = bufferQueue.poll();
+            int lastBuffSize = bufferQueue.lastBytes();
+            int sendsLeft =  (lastBuffSize / blockSize) + 1; // if unneeded (32kib exact last block we break);
+            for (int i = 0; i < sendsLeft; ++i) {
+                int byteSize = i != sendsLeft -1 ? blockSize : lastBuffSize % blockSize;
+                if (byteSize == 0) break; // Don't send in the edge case of not needing the last iter
+                socketOut.writeBoolean(false);
+                socketOut.writeInt(byteSize);
+                socketOut.write(currBuffer, i * blockSize, byteSize);
+                socketOut.flush();
+                total += byteSize;
+            }
+            System.out.println("total:" + total);
+            System.out.println("file:" + fileSize);
+            socketOut.writeBoolean(true); // Send EOF
             socketOut.flush();
-            boolean success = socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
 
+            boolean success = socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
+            socket.close();
             if (success) {
                 System.out.println("Finished transfer for file: " + fileName);
             } else {
                 System.out.println("Error during finalization of file transfer");
                 Main.activeTransfers.remove(fileName);
-                readQueue.stop();
                 throw new IllegalStateException("Server responded to end of transfer as failed");
             }
             if (Settings.deleteAfterTransfer) {
                 Files.delete(file.toPath());
                 System.out.println("Deleted file: " + file);
             }
-            readQueue.stop();
+            bufferQueue.close();
             Main.activeTransfers.remove(fileName);
-
         } catch (IOException e) {
-            readQueue.stop();
             Main.activeTransfers.remove(fileName);
             System.out.println("Error in file transfer, most likely connection was lost.");
             e.printStackTrace();
+            try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"); }
+
         } catch (Exception e) {
-            readQueue.stop();
             Main.activeTransfers.remove(fileName);
             e.printStackTrace();
+            try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"); }
+        } finally {
+            System.out.println("closed");
+            if (socket != null) {
+                try { socket.close(); } catch (IOException e) { System.out.println("Error closing socket"); }
+            }
+
         }
     }
 }
