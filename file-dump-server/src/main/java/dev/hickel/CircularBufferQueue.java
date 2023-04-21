@@ -4,12 +4,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
-import java.util.concurrent.locks.LockSupport;
 
 
 public class CircularBufferQueue implements Runnable {
@@ -34,11 +29,11 @@ public class CircularBufferQueue implements Runnable {
 
     public byte[] swap(byte[] buffer, boolean isLast, int size) {
         int currTail = tail;
+        byteQueue[currTail] = buffer;
+        indexFlags.set(currTail, 2);
         while (indexFlags.get((currTail + 1) % capacity) > 0) {
             Thread.onSpinWait();
         }
-        byteQueue[currTail] = buffer;
-        indexFlags.set(currTail, 2);
         if (isLast) {
             finished = true;
             endBufferSize = size;

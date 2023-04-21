@@ -21,7 +21,8 @@ public class QueuedFileReceiver implements Runnable {
         this.socket = socket;
         this.activePaths = activePaths;
         buffer = new byte[Settings.blockBufferSize];
-        socket.setSoTimeout(60000);
+        socket.setSoTimeout(120_000);
+        socket.setTrafficClass(24);
         if (Settings.socketBufferSize > 0) { socket.setReceiveBufferSize(Settings.socketBufferSize); }
         blockBufferSize = Settings.blockBufferSize;
     }
@@ -58,14 +59,14 @@ public class QueuedFileReceiver implements Runnable {
             int bufferSize;
             while (true) {
                 // Submit any remaining buffer if server is finished sending
-                boolean finished = socketIn.readBoolean();
-                if (finished) {
+
+                bufferSize = socketIn.readInt();
+                if (bufferSize == -1) {
                     bufferQueue.swap(buffer, true, currOffset);
                     break;
                 }
 
                 // Read buffer
-                bufferSize = socketIn.readInt();
                 System.arraycopy(socketIn.readNBytes(bufferSize), 0, buffer, currOffset, bufferSize);
                 currOffset += bufferSize;
 

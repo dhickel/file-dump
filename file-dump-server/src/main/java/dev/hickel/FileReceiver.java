@@ -11,14 +11,13 @@ import java.util.concurrent.locks.LockSupport;
 public class FileReceiver implements Runnable {
     private final Socket socket;
     private final ActivePaths activePaths;
-   // private final ByteBuffer buffer;
     private String fileName = "";
 
     public FileReceiver(Socket socket, ActivePaths activePaths) throws SocketException {
         this.socket = socket;
         this.activePaths = activePaths;
-      //  buffer = ByteBuffer.allocate(Settings.blockBufferSize);
-        socket.setSoTimeout(30000);
+        socket.setSoTimeout(120_000);
+        socket.setTrafficClass(24);
         if (Settings.socketBufferSize > 0) { socket.setReceiveBufferSize(Settings.socketBufferSize); }
     }
 

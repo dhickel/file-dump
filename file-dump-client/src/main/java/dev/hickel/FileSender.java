@@ -48,12 +48,11 @@ public class FileSender implements Runnable {
             int bytesRead;
             byte[] buffer = new byte[blockSize];
             while ((bytesRead = inputFile.read(buffer, 0, blockSize)) != -1) {
-                socketOut.writeBoolean(false);
                 socketOut.writeInt(bytesRead);
                 socketOut.write(buffer, 0, bytesRead);
                 socketOut.flush();
             }
-            socketOut.writeBoolean(true); // send EOF
+            socketOut.writeInt(-1);
             socketOut.flush();
 
             boolean success = socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect

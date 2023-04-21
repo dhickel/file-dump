@@ -23,13 +23,16 @@ public class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdownNow));
 
         executor.submit(() -> {
-            try {
-                Thread.sleep(60_000);
-                boolean changed = Settings.load();
-                if (changed) { activePaths.replaceList(Settings.outputDirectories); }
-            } catch (IOException e) {
-                System.out.println("Error hot loading config change");
-            } catch (InterruptedException ignored) { }
+            while (true) {
+                try {
+                    Thread.sleep(60_000);
+                    boolean changed = Settings.load();
+                    if (changed) { activePaths.replaceList(Settings.outputDirectories); }
+                } catch (IOException e) {
+                    System.out.println("Error hot loading config change");
+                } catch (InterruptedException ignored) { }
+            }
+
         });
 
         // wait for new connections

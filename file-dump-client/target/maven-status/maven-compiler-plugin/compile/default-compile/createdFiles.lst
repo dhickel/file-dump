@@ -3,4 +3,4 @@ dev/hickel/CircularBufferQueue.class
 dev/hickel/Settings.class
 dev/hickel/Settings$1.class
 dev/hickel/FileSender.class
-dev/hickel/FileSender2.class
+dev/hickel/QueuedFileSender.class

@@ -20,7 +20,8 @@ public class QueuedFileSender implements Runnable {
         chunkSize = Settings.chunkSize;
         blockSize = Settings.blockSize;
         socket = new Socket(Settings.serverAddress, Settings.serverPort);
-        socket.setSoTimeout(60000);
+        socket.setSoTimeout(120_000);
+        socket.setTrafficClass(24);
     }
 
     @Override
@@ -45,37 +46,24 @@ public class QueuedFileSender implements Runnable {
             new Thread(bufferQueue).start();
             System.out.println("Started transfer of file: " + fileName);
 
-            var total = 0;
             byte[] currBuffer;
-            while (!bufferQueue.onePollLeft()) {
+            int currSize;
+            int byteWritten;
+            while (true) {
                 currBuffer = bufferQueue.poll();
-                for (int i = 0; i < chunkSize; i += blockSize) {
-                    socketOut.writeBoolean(false);
-                    socketOut.writeInt(blockSize);
-                    socketOut.write(currBuffer, i, blockSize);
+                currSize = currBuffer.length;
+                byteWritten = 0;
+                if (currSize == 0) { break; }
+                for (int i = 0; i < currSize; i += blockSize) {
+                    int byteSize = (Math.min(currSize - byteWritten, blockSize));
+                    socketOut.writeInt(byteSize);
+                    socketOut.write(currBuffer, i, byteSize);
                     socketOut.flush();
-                    total += blockSize;
+                    byteWritten += byteSize;
                 }
                 bufferQueue.finishedRead();
             }
-
-            // Last buffer is mostly likely not full, poll and do an extra iteration if needed
-            // that is the partial block size
-            currBuffer = bufferQueue.poll();
-            int lastBuffSize = bufferQueue.lastBytes();
-            int sendsLeft =  (lastBuffSize / blockSize) + 1; // if unneeded (32kib exact last block we break);
-            for (int i = 0; i < sendsLeft; ++i) {
-                int byteSize = i != sendsLeft -1 ? blockSize : lastBuffSize % blockSize;
-                if (byteSize == 0) break; // Don't send in the edge case of not needing the last iter
-                socketOut.writeBoolean(false);
-                socketOut.writeInt(byteSize);
-                socketOut.write(currBuffer, i * blockSize, byteSize);
-                socketOut.flush();
-                total += byteSize;
-            }
-            System.out.println("total:" + total);
-            System.out.println("file:" + fileSize);
-            socketOut.writeBoolean(true); // Send EOF
+            socketOut.writeInt(-1); // Send EOF
             socketOut.flush();
 
             boolean success = socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
@@ -104,11 +92,9 @@ public class QueuedFileSender implements Runnable {
             e.printStackTrace();
             try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"); }
         } finally {
-            System.out.println("closed");
             if (socket != null) {
                 try { socket.close(); } catch (IOException e) { System.out.println("Error closing socket"); }
             }
-
         }
     }
 }

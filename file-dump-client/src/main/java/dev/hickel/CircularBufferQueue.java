@@ -18,27 +18,28 @@ public class CircularBufferQueue implements Runnable {
     private volatile int state = 1;
 
     public CircularBufferQueue(File file) {
-        try {
-            this.file = file;
-            byteQueue = new byte[Settings.readQueueSize][Settings.chunkSize];
-            indexFlags = new AtomicIntegerArray(Settings.readQueueSize);
-            head = 0;
-            tail = 0;
-            System.out.println("constructed");
-            System.out.flush();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        this.file = file;
+        byteQueue = new byte[Settings.readQueueSize][Settings.chunkSize];
+        indexFlags = new AtomicIntegerArray(Settings.readQueueSize);
+        head = 0;
+        tail = 0;
     }
 
     public byte[] swap(byte[] buffer, int size) {
         int currTail = tail;
+
+        if (size < chunkSize) {
+            byte[] smallBuff = new byte[size];
+            System.arraycopy(buffer, 0, smallBuff, 0, size);
+            byteQueue[currTail] = smallBuff;
+        } else {
+            byteQueue[currTail] = buffer;
+        }
+        lastBufferSize = size;
+        indexFlags.set(currTail, 2);
         while (indexFlags.get((currTail + 1) % capacity) > 0) {
             Thread.onSpinWait();
         }
-        byteQueue[currTail] = buffer;
-        indexFlags.set(currTail, 2);
-        lastBufferSize = size;
         int nextTail = (currTail + 1) % capacity; // inc safe since only this thread mutates
         indexFlags.set(nextTail, 1);
         tail = nextTail; //
@@ -55,19 +56,12 @@ public class CircularBufferQueue implements Runnable {
     }
 
     public byte[] poll() {
-        int currHead = head % capacity;
+        int currHead = head;
+
         while (isEmpty() || indexFlags.get(currHead) < 2) {
             Thread.onSpinWait();
         }
         return byteQueue[currHead];
-    }
-
-    public boolean onePollLeft() {
-        return finished && ((head + 1) % capacity == tail);
-    }
-
-    public int lastBytes() {
-        return lastBufferSize;
     }
 
     public void finishedRead() {
@@ -84,21 +78,22 @@ public class CircularBufferQueue implements Runnable {
         state = 0;
     }
 
+    void printInfo() {
+        System.out.println("Head:" + head + "\ttail:" + tail + "\t" + indexFlags);
+    }
+
     @Override
     public void run() {
-        System.out.flush();
         byte[] buffer = getFirst();
         try (FileInputStream inputFile = new FileInputStream(file)) {
             int bytesRead;
-            while ((bytesRead = inputFile.read(buffer, 0, chunkSize)) != -1 && state > 0) {
+            while ((bytesRead = inputFile.read(buffer, 0, chunkSize)) != -1) {
                 buffer = swap(buffer, bytesRead);
             }
-            finished = true;
+            swap(buffer, 0);
         } catch (IOException e) {
             System.out.println("Error reading file");
             state = -1;
-        } finally {
-            System.out.println("closed");
         }
     }
 }
