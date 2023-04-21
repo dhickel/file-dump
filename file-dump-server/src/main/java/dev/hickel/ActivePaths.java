@@ -18,7 +18,7 @@ public class ActivePaths {
         this.pathList.addAll(pathList);
     }
 
-    public synchronized Path getPath(String fileName, long fileSize) {
+    public synchronized Path getNewPath(String fileName, long fileSize) {
         Path pathMostFree = getPathMostFree(fileSize);
         if (pathMostFree == null && Settings.deleteForSpace) {
             try {
@@ -39,8 +39,16 @@ public class ActivePaths {
         return null;
     }
 
-    public synchronized void removePath(String fileName) {
+    public synchronized Path getExistingPath(String fileName) {
+        return activeTransfers.get(fileName);
+    }
+
+    public synchronized void removeActiveTransfer(String fileName) {
         activeTransfers.remove(fileName);
+    }
+
+    public synchronized void removePathOfTransfer(String fileName) {
+        pathList.remove(activeTransfers.get(fileName));
     }
 
     final Predicate<Path> eligible = path -> path != null && path.toFile().isDirectory()

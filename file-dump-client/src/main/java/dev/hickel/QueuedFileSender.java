@@ -46,6 +46,8 @@ public class QueuedFileSender implements Runnable {
             new Thread(bufferQueue).start();
             System.out.println("Started transfer of file: " + fileName);
 
+
+            // Loop through until the "null" size 0 array is returned from the buffer queue.
             byte[] currBuffer;
             int currSize;
             int byteWritten;

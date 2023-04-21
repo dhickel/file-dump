@@ -38,7 +38,7 @@ public class QueuedFileReceiver implements Runnable {
             fileSize = socketIn.readLong();
 
             // Check for free space, send boolean to client if space not available, or file exists
-            Path freePath = activePaths.getPath(fileName, fileSize);
+            Path freePath = activePaths.getNewPath(fileName, fileSize);
             if (freePath == null) {
                 socketOut.writeBoolean(false);
                 socketOut.flush();
@@ -79,8 +79,10 @@ public class QueuedFileReceiver implements Runnable {
                 // Check for buffer error
                 if (bufferQueue.getState() < 0) {
                     bufferQueue.close();
-                    activePaths.removePath(fileName);
-                    System.out.println("Error writing file aborting....");
+                    System.out.println("Error writing, assuming directory has improper privileges.");
+                    System.out.println("Removed Path: " + activePaths.getExistingPath(fileName));
+                    activePaths.removeActiveTransfer(fileName);
+                    activePaths.removePathOfTransfer(fileName);
                     return;
                 }
             }
@@ -88,7 +90,7 @@ public class QueuedFileReceiver implements Runnable {
             // Wait for queue to complete it's writes, then close socket and cleanup
             while (true) {
                 if (bufferQueue.getState() < 1) {
-                    activePaths.removePath(fileName);
+                    activePaths.removeActiveTransfer(fileName);
                     File finalFile = new File(outputFile.getParent(), fileName);
                     outputFile.renameTo(finalFile);
 
@@ -112,7 +114,7 @@ public class QueuedFileReceiver implements Runnable {
             }
         } catch (Exception e) {
             System.out.println(Instant.now().getEpochSecond());
-            activePaths.removePath(fileName);
+            activePaths.removeActiveTransfer(fileName);
             bufferQueue.close();
             e.printStackTrace();
             try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"); }

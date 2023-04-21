@@ -3,9 +3,7 @@ package dev.hickel;
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.concurrent.locks.LockSupport;
 
 
 public class FileReceiver implements Runnable {
@@ -33,7 +31,7 @@ public class FileReceiver implements Runnable {
             fileSize = socketIn.readLong();
 
             // Check for free space, send boolean to client if space not available, or file exists
-            Path freePath = activePaths.getPath(fileName, fileSize);
+            Path freePath = activePaths.getNewPath(fileName, fileSize);
             if (freePath == null) {
                 socketOut.writeBoolean(false);
                 socketOut.flush();
@@ -57,7 +55,7 @@ public class FileReceiver implements Runnable {
                     boolean finished = socketIn.readBoolean();
                     if (finished) {
                         bufferStream.flush();
-                        activePaths.removePath(fileName);
+                        activePaths.removeActiveTransfer(fileName);
                         File finalFile = new File(outputFile.getParent(), fileName);
                         outputFile.renameTo(finalFile);
 
@@ -78,17 +76,24 @@ public class FileReceiver implements Runnable {
 
                     // Read buffer
                     int bytesRead = socketIn.readInt();
-                    bufferStream.write(socketIn.readNBytes(bytesRead), 0, bytesRead);
+                    try {
+                        bufferStream.write(socketIn.readNBytes(bytesRead), 0, bytesRead);
+                    } catch (Exception e) {
+                        System.out.println("Error writing, assuming directory has improper privileges.");
+                        System.out.println("Removed Path: " + activePaths.getExistingPath(fileName));
+                        activePaths.removeActiveTransfer(fileName);
+                        activePaths.removePathOfTransfer(fileName);
+                    }
                 }
             }
         } catch (IOException e) {
-            activePaths.removePath(fileName);
+            activePaths.removeActiveTransfer(fileName);
             System.out.println("Error encountered aborting transfer of: " + fileName);
             e.printStackTrace();
             try { socket.close();
             } catch (IOException ee) { System.out.println("Error closing socket"); }
         } catch (Exception e) {
-            activePaths.removePath(fileName);
+            activePaths.removeActiveTransfer(fileName);
             e.printStackTrace();
             try { socket.close();
             } catch (IOException ee) { System.out.println("Error closing socket"); }

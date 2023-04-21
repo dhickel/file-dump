@@ -32,7 +32,6 @@ public class Main {
                     System.out.println("Error hot loading config change");
                 } catch (InterruptedException ignored) { }
             }
-
         });
 
         // wait for new connections

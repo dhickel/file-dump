@@ -10,11 +10,8 @@
 # Offers around a 10-15% Speed increase for ~3x the memory used
 separateThreadForWrite: true
 
-# Max queue size when using separateThreadForWrite, not sure the best range
-# if doing single transfers over a fast network it will offer more benefit
-# causes less stalling when larger, doesn't scale well. If doing multiple transfers at once'
-# it can be lower
-queueSize: 12
+# Max queue size when using separateThreadForWrite
+queueSize: 8
 
 # Indifferent to trailing slash, you may need to escape backslashes on windows
 outputDirectories:
@@ -27,34 +24,23 @@ limitOneTransferPerDirectory: true
 # Port to use
 port: 9988
 
-# -1 to let jvm control, best left untouched, too small will slow transfers
-socketBufferSize: 32768
-
-
-# How many blocks to buffer from the socket, before flushing to disk or the queue
-blockBufferSize: 4194304
-
-
-# Size of buffer for disk writes when using separateThreadForWrite, may see improvements editing
-# Should be in a power of 2 of you hard disk blocksize, and small enough to fit into cache.
-# Increasing it can lead to less seeks, but you hdd is likely already cacheing multiple buffers worth before writeing
-writeBufferSize: 4194304
 
 # Do not include the . only the extension name ex. "plot" not ".plot"
 deletedFileTypes:
 - "filetype"
+
 
 # Directories who files are subject to deletion if they meet the filetype and size requirements
 deletionDirectories:
 - "/dir1"
 - "/dir2/"
 
-
 # Delete files from the specified deletion directory if they meet the type and size requirements
 deleteForSpace: false
 
 
 # Threshold in MiB for files to delete, any files larger than this will be deleted
+# When loading the cvonfig this will display as bytes, but input as MiB
 deletionThreshHold: 9999999 #MiB
 
 

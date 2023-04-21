@@ -1,5 +1,5 @@
-:: Might need to increase Xmx to Xmx256M
-:: If using a large queue and separate write thread
+:: If using a large queue size, or transfering more than 3-4 files you will need to increase the xmx
+:: increase if you get OOM errors
 
-java -Xms32M -Xmx128M -jar file-dump-client.jar
+java -Xms64M -Xmx512M -jar file-dump-client.jar
 

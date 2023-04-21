@@ -4,8 +4,7 @@
 
 # These settings will uses 80-110MB of memory while transfering if using the launch script
 
-# Read file from a separate thread, does offer much benefit
-# But likely helps some when writing plots while transfering
+# Read file from a separate thread, helps when writing to the disk while transfering
 separateThreadForReading: true
 
 # Address and port of server receiving the files
@@ -18,13 +17,10 @@ maxTransfers: 3
 # How often to check for new files in seconds
 fileCheckInterval: 15
 
-# Size of network output buffer
-# Set to -1 for jvm defaults
-socketBufferSize: 32768
 
 # Length of block queue when using separateThreadForReading
 # readQueueSize * blockSize = maxData in memory at once
-readQueueSize: 256
+readQueueSize: 8
 
 # Directories search at fileCheckInterval, indifferent to tailing slash, may need to escape backslash on windows
 monitoredDirectories:
@@ -34,16 +30,9 @@ monitoredDirectories:
 monitoredFileTypes:
 - "filetype"
 
-# Amount to stream off disk at once when not using separateThreadForReading
-# This much is read then dispatched by blockSize to the socket
-chunkSize: 4194304
-
-# Amount of data to send to out at once, per transfer
-# Ideally should be be a power of 2 and a divisor of the server's blockBufferSize
-blockSize: 32768
 
 # Delete local files after successful transfers
-# Server relays if file was sucessful transfered and size match
+# Server relays if file was sucessfully transfered and size match
 # this will delete on that message
 deleteAfterTransfer: true
 

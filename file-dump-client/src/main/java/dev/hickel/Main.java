@@ -24,8 +24,12 @@ public class Main {
         final Predicate<File> eligibleDirectory = file -> !activeTransfers.contains(file.getName())
                 && activeTransfers.size() < Settings.maxTransfers;
 
+        // TODO make this not keep looping if files existing on server, getting resent then rejected and never progressing,
+        //  this is also broken for transffering without deleting as it will also keep sending the same file
+        //  issue is it can't see if a transfer is rejected, so will likely need to keep track of them in an array,
+        //  works fine atm as long as deleting files, and not trying to keep sending the same file, which it will do if not deleting
         executor.scheduleAtFixedRate(() -> {
-            try { // TODO make this not keep looping if files existing on server, getting resent then rejected and never progressing
+            try {
                 Settings.load(); // Can just stick this here instead of giving it its own thread
                 Settings.monitoredDirectories.stream()
                         .map(File::new)

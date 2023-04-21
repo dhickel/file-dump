@@ -20,12 +20,12 @@ import java.util.List;
 public class Settings {
     public static volatile boolean separateThreadForWriting = true;
     public static volatile int queueSize = 8;
-    public static volatile List<Path> outputDirectories = List.of(Path.of("/mnt/42c5c6f4-3d60-4eda-980e-0da2ac5412b8"));
+    public static volatile List<Path> outputDirectories = List.of();
     public static volatile boolean oneTransferPerDirectory = false;
     public static volatile int port = 9988;
     public static volatile int socketBufferSize = 32768;
-    public static volatile int blockBufferSize = 4194304;
-    public static volatile int writeBufferSize = 4194304;
+    public static volatile int blockBufferSize = 1048576;
+    public static volatile int writeBufferSize = 1048576;
     public static volatile boolean deleteForSpace = false;
     public static volatile List<String> deletedFileTypes = List.of();
     public static volatile List<Path> deletionDirectories = List.of();

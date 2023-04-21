@@ -25,6 +25,10 @@ public class CircularBufferQueue implements Runnable {
         tail = 0;
     }
 
+    // A buffer is "checked out" with the flag set to 1, once it is return full the flag is set to 2 meaning it is ready
+    // to read. After a read has been done flag is return to 0 meaning it is free to be written to again.
+    // buffers stay the same size, up until the last write and "null" 0 termination buffer. This allows for the last read
+    // where the buffer is more than likely not going to equal the block size
     public byte[] swap(byte[] buffer, int size) {
         int currTail = tail;
 
@@ -64,6 +68,8 @@ public class CircularBufferQueue implements Runnable {
         return byteQueue[currHead];
     }
 
+    // The sets the buffers index flag back to zero to be reused, this needs to be 2 parts so data not yet written by
+    // the poller doesn't get overwritten.
     public void finishedRead() {
         int oldHead = head;
         head = (oldHead + 1) % capacity; //inc  safe since only this thread mutates

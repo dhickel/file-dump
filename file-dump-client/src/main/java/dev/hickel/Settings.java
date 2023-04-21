@@ -1,26 +1,29 @@
 package dev.hickel;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 
 public class Settings {
-    public static volatile String serverAddress = "192.168.10.2";
+    public static volatile String serverAddress = "localhost";
     public static boolean separateThreadForReading = true;
     public static volatile int serverPort = 9988;
     public static volatile int maxTransfers = 3;
     public static volatile int socketBufferSize = 32768;
-    public static volatile int readQueueSize = 8;
-    public static volatile List<String> monitoredDirectories = List.of("/mnt/chia1");
-    public static volatile List<String> monitoredFileTypes = List.of("plot");
+    public static volatile int readQueueSize = 4;
+    public static volatile List<String> monitoredDirectories = List.of();
+    public static volatile List<String> monitoredFileTypes = List.of();
     public static volatile int blockSize = 32768;
     public static volatile int chunkSize = 4194304;
     public static volatile int fileCheckInterval = 3;
@@ -29,36 +32,36 @@ public class Settings {
     private static final TypeReference<List<String>> TYPE_REF = new TypeReference<>() { };
 
     public static void load() throws IOException {
-//        String config = System.getProperty("user.dir") + File.separator + "config.yaml";
-//        File configFile = Path.of(config).toFile();
-//        String configChecksum = getCheckSum(configFile);
-//        if (lastCheckSum.equals(configChecksum)) { return; }
-//        lastCheckSum = configChecksum;
-//
-//        var mapper = new ObjectMapper(new YAMLFactory());
-//        JsonNode node = mapper.readTree(configFile);
-//        var iter = node.fields();
-//        while (iter.hasNext()) {
-//            var next = iter.next();
-//            switch (next.getKey()) {
-//                case "serverAddress" -> serverAddress = next.getValue().asText();
-//                case "separateThreadForReading" -> separateThreadForReading = next.getValue().asBoolean();
-//                case "serverPort" -> serverPort = next.getValue().asInt();
-//                case "maxTransfers" -> maxTransfers = next.getValue().asInt();
-//                case "socketBufferSize" -> socketBufferSize = next.getValue().asInt();
-//                case "readQueueSize" -> readQueueSize = next.getValue().asInt();
-//                case "monitoredDirectories" ->
-//                        monitoredDirectories = mapper.readValue(next.getValue().traverse(), TYPE_REF);
-//                case "monitoredFileTypes" ->
-//                        monitoredFileTypes = mapper.readValue(next.getValue().traverse(), TYPE_REF);
-//                case "blockSize" -> blockSize = next.getValue().asInt();
-//                case "chunkSize" -> chunkSize = next.getValue().asInt();
-//                case "fileCheckInterval" -> fileCheckInterval = next.getValue().asInt();
-//                case "deleteAfterTransfer" -> deleteAfterTransfer = next.getValue().asBoolean();
-//                default -> System.out.println("Unrecognized field name in config");
-//            }
-//        }
-//        System.out.println(printConfig());
+        String config = System.getProperty("user.dir") + File.separator + "config.yaml";
+        File configFile = Path.of(config).toFile();
+        String configChecksum = getCheckSum(configFile);
+        if (lastCheckSum.equals(configChecksum)) { return; }
+        lastCheckSum = configChecksum;
+
+        var mapper = new ObjectMapper(new YAMLFactory());
+        JsonNode node = mapper.readTree(configFile);
+        var iter = node.fields();
+        while (iter.hasNext()) {
+            var next = iter.next();
+            switch (next.getKey()) {
+                case "serverAddress" -> serverAddress = next.getValue().asText();
+                case "separateThreadForReading" -> separateThreadForReading = next.getValue().asBoolean();
+                case "serverPort" -> serverPort = next.getValue().asInt();
+                case "maxTransfers" -> maxTransfers = next.getValue().asInt();
+                case "socketBufferSize" -> socketBufferSize = next.getValue().asInt();
+                case "readQueueSize" -> readQueueSize = next.getValue().asInt();
+                case "monitoredDirectories" ->
+                        monitoredDirectories = mapper.readValue(next.getValue().traverse(), TYPE_REF);
+                case "monitoredFileTypes" ->
+                        monitoredFileTypes = mapper.readValue(next.getValue().traverse(), TYPE_REF);
+                case "blockSize" -> blockSize = next.getValue().asInt();
+                case "chunkSize" -> chunkSize = next.getValue().asInt();
+                case "fileCheckInterval" -> fileCheckInterval = next.getValue().asInt();
+                case "deleteAfterTransfer" -> deleteAfterTransfer = next.getValue().asBoolean();
+                default -> System.out.println("Unrecognized field name in config");
+            }
+        }
+        System.out.println(printConfig());
     }
 
     private static String printConfig() {
