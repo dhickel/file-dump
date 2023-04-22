@@ -1,8 +1,7 @@
 package dev.hickel;
 
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -35,7 +34,12 @@ public class Main {
         });
 
         // wait for new connections
-        try (ServerSocket serverSocket = new ServerSocket(Settings.port)) {
+        InetAddress addr;
+        try { addr = InetAddress.getByName(Settings.bindAddress);
+        } catch (UnknownHostException e) { throw new RuntimeException("Failed to bind to address");
+        }
+        try (ServerSocket serverSocket = new ServerSocket()) {
+            serverSocket.bind(new InetSocketAddress(addr, Settings.port));
             System.out.println("Server started. Waiting for connections...");
             while (!exit.get()) {
                 Socket socket = serverSocket.accept();

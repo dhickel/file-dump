@@ -18,6 +18,7 @@ import java.util.List;
 
 
 public class Settings {
+    public static String bindAddress = "0.0.0.0";
     public static volatile boolean separateThreadForWriting = true;
     public static volatile int queueSize = 8;
     public static volatile List<Path> outputDirectories = List.of();
@@ -47,6 +48,7 @@ public class Settings {
         while (iter.hasNext()) {
             var next = iter.next();
             switch (next.getKey()) {
+                case "bindAddress" -> bindAddress = next.getValue().asText();
                 case "separateThreadForWriting" -> separateThreadForWriting = next.getValue().asBoolean();
                 case "queueSize" -> queueSize = next.getValue().asInt();
                 case "outputDirectories" ->
@@ -85,6 +87,7 @@ public class Settings {
 
     private static String printConfig() {
         final StringBuilder sb = new StringBuilder("Loaded Config: ");
+        sb.append("\n  bindAddress: ").append(bindAddress);
         sb.append("\n  separateThreadForWriting: ").append(separateThreadForWriting);
         sb.append("\n  queueSize: ").append(queueSize);
         sb.append("\n  outputDirectories: ").append(outputDirectories);
@@ -135,4 +138,7 @@ public class Settings {
         } catch (NoSuchAlgorithmException ignored) { }
         return null;
     }
+
+
+
 }

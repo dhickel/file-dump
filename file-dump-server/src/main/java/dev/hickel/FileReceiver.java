@@ -52,8 +52,8 @@ public class FileReceiver implements Runnable {
                 while (true) {
 
                     // FLush buffer to disk, and clean up
-                    boolean finished = socketIn.readBoolean();
-                    if (finished) {
+                    int bytesReceived = socketIn.readInt();
+                    if (bytesReceived == -1) {
                         bufferStream.flush();
                         activePaths.removeActiveTransfer(fileName);
                         File finalFile = new File(outputFile.getParent(), fileName);
@@ -70,14 +70,16 @@ public class FileReceiver implements Runnable {
                         String metrics = "Finished receiving file: " + fileName +" to: " + outputFile.getParentFile() +
                                 "\tTime: " + seconds + " Sec" +
                                 "\tSpeed: " + Math.round((double) fileSize / 1048576 / seconds) + " MiBs";
+                        int[] stats = TransferStats.incStats(fileSize);
                         System.out.println(metrics);
+                        System.out.println("Daily Stats | Count: " + stats[0] +" | Transferred: " + stats[1] + " GiB" );
                         return;
                     }
 
                     // Read buffer
-                    int bytesRead = socketIn.readInt();
+
                     try {
-                        bufferStream.write(socketIn.readNBytes(bytesRead), 0, bytesRead);
+                        bufferStream.write(socketIn.readNBytes(bytesReceived), 0, bytesReceived);
                     } catch (Exception e) {
                         System.out.println("Error writing, assuming directory has improper privileges.");
                         System.out.println("Removed Path: " + activePaths.getExistingPath(fileName));

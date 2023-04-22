@@ -3,7 +3,7 @@ package dev.hickel;
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
-import java.time.Instant;
+import java.util.concurrent.locks.LockSupport;
 
 
 public class FileSender implements Runnable {
@@ -13,15 +13,18 @@ public class FileSender implements Runnable {
     private final int chunkSize;
     private final int blockSize;
     private final Socket socket;
+    private final int transferLimit;
 
-    public FileSender(File file) throws IOException {
+    public FileSender(File file, String address, int port, int transferLimit) throws IOException {
         fileSize = file.length();
         fileName = file.getName();
         this.file = file;
         chunkSize = Settings.chunkSize;
         blockSize = Settings.blockSize;
-        socket = new Socket(Settings.serverAddress, Settings.serverPort);
-        socket.setSoTimeout(60000);
+        socket = new Socket(address, port);
+        socket.setSoTimeout(120_000);
+        socket.setTrafficClass(24);
+        this.transferLimit = transferLimit < 1 ? -1 : transferLimit;
     }
 
     @Override
@@ -51,6 +54,9 @@ public class FileSender implements Runnable {
                 socketOut.writeInt(bytesRead);
                 socketOut.write(buffer, 0, bytesRead);
                 socketOut.flush();
+                if (transferLimit != -1) {
+                    LockSupport.parkNanos(transferLimit - 50);
+                }
             }
             socketOut.writeInt(-1);
             socketOut.flush();
@@ -80,6 +86,7 @@ public class FileSender implements Runnable {
             e.printStackTrace();
             try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"); }
         } finally {
+            System.gc();
             if (socket != null) {
                 try { socket.close(); } catch (IOException e) { System.out.println("Error closing socket"); }
             }

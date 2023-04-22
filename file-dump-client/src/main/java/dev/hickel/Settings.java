@@ -16,10 +16,11 @@ import java.util.List;
 
 
 public class Settings {
-    public static volatile String serverAddress = "localhost";
+    public static volatile List<String> serverAddresses = List.of("localhost");
     public static boolean separateThreadForReading = true;
-    public static volatile int serverPort = 9988;
-    public static volatile int maxTransfers = 3;
+    public static volatile List<Integer> serverPorts = List.of(9988);
+    public static volatile List<Integer> transferSpeedCaps = List.of(-1);
+    public static volatile List<Integer> maxTransfers = List.of(3);
     public static volatile int socketBufferSize = 32768;
     public static volatile int readQueueSize = 4;
     public static volatile List<String> monitoredDirectories = List.of();
@@ -29,7 +30,8 @@ public class Settings {
     public static volatile int fileCheckInterval = 3;
     public static boolean deleteAfterTransfer = true;
     private static volatile String lastCheckSum = "";
-    private static final TypeReference<List<String>> TYPE_REF = new TypeReference<>() { };
+    private static final TypeReference<List<String>> STRING_REF = new TypeReference<>() { };
+    private static final TypeReference<List<Integer>> INTEGER_REF = new TypeReference<>() { };
 
     public static void load() throws IOException {
         String config = System.getProperty("user.dir") + File.separator + "config.yaml";
@@ -44,16 +46,17 @@ public class Settings {
         while (iter.hasNext()) {
             var next = iter.next();
             switch (next.getKey()) {
-                case "serverAddress" -> serverAddress = next.getValue().asText();
+                case "serverAddresses" -> serverAddresses = mapper.readValue(next.getValue().traverse(), STRING_REF);
                 case "separateThreadForReading" -> separateThreadForReading = next.getValue().asBoolean();
-                case "serverPort" -> serverPort = next.getValue().asInt();
-                case "maxTransfers" -> maxTransfers = next.getValue().asInt();
+                case "serverPorts" -> serverPorts = mapper.readValue(next.getValue().traverse(), INTEGER_REF);
+                case "transferSpeedCaps" -> transferSpeedCaps = mapper.readValue(next.getValue().traverse(), INTEGER_REF);
+                case "maxTransfers" -> maxTransfers = mapper.readValue(next.getValue().traverse(), INTEGER_REF);
                 case "socketBufferSize" -> socketBufferSize = next.getValue().asInt();
                 case "readQueueSize" -> readQueueSize = next.getValue().asInt();
                 case "monitoredDirectories" ->
-                        monitoredDirectories = mapper.readValue(next.getValue().traverse(), TYPE_REF);
+                        monitoredDirectories = mapper.readValue(next.getValue().traverse(), STRING_REF);
                 case "monitoredFileTypes" ->
-                        monitoredFileTypes = mapper.readValue(next.getValue().traverse(), TYPE_REF);
+                        monitoredFileTypes = mapper.readValue(next.getValue().traverse(), STRING_REF);
                 case "blockSize" -> blockSize = next.getValue().asInt();
                 case "chunkSize" -> chunkSize = next.getValue().asInt();
                 case "fileCheckInterval" -> fileCheckInterval = next.getValue().asInt();
@@ -66,10 +69,11 @@ public class Settings {
 
     private static String printConfig() {
         final StringBuilder sb = new StringBuilder("Loaded Config: ");
-        sb.append("\n  serverAddress: ").append(serverAddress);
+        sb.append("\n  serverAddresses: ").append(serverAddresses);
         sb.append("\n  separateThreadForReading: ").append(separateThreadForReading);
-        sb.append("\n  serverPort: ").append(serverPort);
+        sb.append("\n  serverPorts: ").append(serverPorts);
         sb.append("\n  maxTransfers: ").append(maxTransfers);
+        sb.append("\n  transferSpeedCaps: ").append(transferSpeedCaps);
         sb.append("\n  socketBufferSize: ").append(socketBufferSize);
         sb.append("\n  readQueueSize: ").append(readQueueSize);
         sb.append("\n  monitoredDirectories: ").append(monitoredDirectories);
@@ -100,4 +104,18 @@ public class Settings {
         } catch (NoSuchAlgorithmException ignored) { }
         return "";
     }
+
+
+    private static long secToNanos(double sec) {
+        return (long) (sec * 1000000000);
+    }
+
+    public static long calcRateLimit(long startNanos, long totalTransferred, int rateMiB) {
+        double rateBytesPerSec = (double) rateMiB * 1024 * 1024;
+        double elapsedTimeSec = (System.nanoTime() - startNanos) / 1_000_000_000.0;
+        double expectedBytesTransferred = elapsedTimeSec * rateBytesPerSec;
+        long sleepTimeNanos = secToNanos((expectedBytesTransferred - totalTransferred) / rateBytesPerSec);
+        return Math.max(0, sleepTimeNanos);
+    }
+
 }

@@ -56,19 +56,19 @@ public class QueuedFileReceiver implements Runnable {
 
             buffer = bufferQueue.getFirst();
             int currOffset = 0;
-            int bufferSize;
+            int bytesReceived;
             while (true) {
                 // Submit any remaining buffer if server is finished sending
 
-                bufferSize = socketIn.readInt();
-                if (bufferSize == -1) {
+                bytesReceived = socketIn.readInt();
+                if (bytesReceived == -1) {
                     bufferQueue.swap(buffer, true, currOffset);
                     break;
                 }
 
                 // Read buffer
-                System.arraycopy(socketIn.readNBytes(bufferSize), 0, buffer, currOffset, bufferSize);
-                currOffset += bufferSize;
+                System.arraycopy(socketIn.readNBytes(bytesReceived), 0, buffer, currOffset, bytesReceived);
+                currOffset += bytesReceived;
 
                 // write if full
                 if (currOffset == blockBufferSize) {
@@ -107,7 +107,9 @@ public class QueuedFileReceiver implements Runnable {
                     String metrics = "Finished receiving file: " + fileName + " to: " + outputFile.getParentFile() +
                             "\tTime: " + seconds + " Sec" +
                             "\tSpeed: " + Math.round((double) fileSize / 1048576 / seconds) + " MiBs";
+                    int[] stats = TransferStats.incStats(fileSize);
                     System.out.println(metrics);
+                    System.out.println("Daily Stats | Count: " + stats[0] +" | Transferred: " + stats[1] + " GiB" );
                     return;
                 }
                 LockSupport.parkNanos(1_000_000 * 50);

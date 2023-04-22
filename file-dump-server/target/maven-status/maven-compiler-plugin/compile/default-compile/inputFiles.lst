@@ -3,4 +3,5 @@
 /home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/ActivePaths.java
 /home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/Settings.java
 /home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/CircularBufferQueue.java
+/home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/TransferStats.java
 /home/mindspice/code/Java/Projects/chia-plot-dump/file-dump-server/src/main/java/dev/hickel/FileReceiver.java

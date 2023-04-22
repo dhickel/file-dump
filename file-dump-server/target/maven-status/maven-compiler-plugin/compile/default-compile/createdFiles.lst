@@ -1,4 +1,5 @@
 dev/hickel/FileReceiver.class
+dev/hickel/TransferStats.class
 dev/hickel/Settings$1.class
 dev/hickel/QueuedFileReceiver.class
 dev/hickel/Main.class
