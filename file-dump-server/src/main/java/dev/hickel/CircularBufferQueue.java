@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.locks.LockSupport;
 
 
 public class CircularBufferQueue implements Runnable {
@@ -32,7 +33,7 @@ public class CircularBufferQueue implements Runnable {
         byteQueue[currTail] = buffer;
         indexFlags.set(currTail, 2);
         while (indexFlags.get((currTail + 1) % capacity) > 0) {
-            Thread.onSpinWait();
+            LockSupport.parkNanos(100);
         }
         if (isLast) {
             finished = true;
@@ -56,7 +57,7 @@ public class CircularBufferQueue implements Runnable {
     public byte[] poll() {
         int currHead = head % capacity;
         while (isEmpty() || indexFlags.get(currHead) < 2) {
-            Thread.onSpinWait();
+            LockSupport.parkNanos(100);
         }
         return byteQueue[currHead];
     }

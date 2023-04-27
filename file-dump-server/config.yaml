@@ -8,6 +8,7 @@
 # Best left on, some memory can be save by disabling
 # Disabling will block from receiving data every time it writes the blockBuffer
 # Offers around a 10-15% Speed increase for ~3x the memory used
+# Helps a lot when writing to slower HDDs
 separateThreadForWrite: true
 
 # Max queue size when using separateThreadForWrite

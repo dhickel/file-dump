@@ -5,7 +5,8 @@
 # These settings will uses 80-110MB of memory while transfering if using the launch script
 
 # Read file from a separate thread, helps when writing to the disk while transfering
-separateThreadForReading: true
+# In most cases not needed, and may slow down writes to disk
+separateThreadForReading: false
 
 # Address and port of server receiving the files
 serverAddress: "localhost"
