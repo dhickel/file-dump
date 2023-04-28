@@ -3,6 +3,7 @@ package dev.hickel;
 import java.io.*;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.locks.LockSupport;
 
 
 public class CircularBufferQueue implements Runnable {
@@ -42,7 +43,7 @@ public class CircularBufferQueue implements Runnable {
         lastBufferSize = size;
         indexFlags.set(currTail, 2);
         while (indexFlags.get((currTail + 1) % capacity) > 0) {
-            Thread.onSpinWait();
+            LockSupport.parkNanos(100);
         }
         int nextTail = (currTail + 1) % capacity; // inc safe since only this thread mutates
         indexFlags.set(nextTail, 1);
@@ -63,7 +64,7 @@ public class CircularBufferQueue implements Runnable {
         int currHead = head;
 
         while (isEmpty() || indexFlags.get(currHead) < 2) {
-            Thread.onSpinWait();
+            LockSupport.parkNanos(100);
         }
         return byteQueue[currHead];
     }

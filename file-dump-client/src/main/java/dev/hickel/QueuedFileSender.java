@@ -13,7 +13,6 @@ public class QueuedFileSender implements Runnable {
     private final int chunkSize;
     private final int blockSize;
     private final Socket socket;
-    private final int transferLimit;
 
     public QueuedFileSender(File file, String address, int port, int transferLimit) throws IOException {
         fileSize = file.length();
@@ -24,7 +23,6 @@ public class QueuedFileSender implements Runnable {
         socket = new Socket(address, port);
         socket.setSoTimeout(120_000);
         socket.setTrafficClass(24);
-        this.transferLimit = transferLimit < 1 ? -1 : transferLimit;
     }
 
     @Override
@@ -53,8 +51,6 @@ public class QueuedFileSender implements Runnable {
             byte[] currBuffer;
             int currSize;
             int byteWritten;
-            long startTime = System.nanoTime();
-            long totalTransferred = 0;
             while (true) {
                 currBuffer = bufferQueue.poll();
                 currSize = currBuffer.length;
@@ -66,12 +62,8 @@ public class QueuedFileSender implements Runnable {
                     socketOut.write(currBuffer, i, byteSize);
                     socketOut.flush();
                     byteWritten += byteSize;
-                    totalTransferred += byteSize;
                 }
                 bufferQueue.finishedRead();
-                if (transferLimit == -1) {
-                    LockSupport.parkNanos(Settings.calcRateLimit(startTime, totalTransferred, transferLimit));
-                }
             }
             socketOut.writeInt(-1); // Send EOF
             socketOut.flush();
