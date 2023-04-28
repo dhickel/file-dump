@@ -15,6 +15,7 @@
 # If using or have a system with multiple nics you may need to explicitly bind to an address
 # Can also be used to run multiple instances on different nics
 bindAddress: "localhost"
+port: 9988
 
 separateThreadForWriting: true
 
