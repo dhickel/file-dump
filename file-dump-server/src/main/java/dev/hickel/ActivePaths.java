@@ -95,7 +95,7 @@ public class ActivePaths {
                         try {
                             long size = file.length();
                             Files.delete(file.toPath());
-                            System.out.println("Deleted file: " + path + file.getName()
+                            System.out.println("Deleted file: " + path + File.separator + file.getName()
                                                        + "\tSize: " + Math.round((double) size / 1048576) + " MiB");
                         } catch (IOException e) {
                             System.out.println("Error deleting file: " + file.getName());
