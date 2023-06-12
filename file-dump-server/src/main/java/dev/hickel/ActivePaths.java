@@ -22,11 +22,12 @@ public class ActivePaths {
         Path pathMostFree = getPathMostFree(fileSize);
         if (pathMostFree == null && Settings.deleteForSpace) {
             try {
-                pathMostFree = deleteForFreeSpace(fileSize);
+                deleteForFreeSpace(fileSize);
             } catch (IOException | UnsupportedOperationException e) {
                 System.out.println("Error deleting file(s) for more space");
                 e.printStackTrace();
             }
+            pathMostFree = getPathMostFree(fileSize);
         }
         if (pathMostFree != null) {
             Path freeFile = pathMostFree.resolve(fileName);
