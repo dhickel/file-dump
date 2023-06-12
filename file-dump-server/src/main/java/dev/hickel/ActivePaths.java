@@ -53,7 +53,8 @@ public class ActivePaths {
     }
 
     final Predicate<Path> eligible = path -> path != null && path.toFile().isDirectory()
-            && (!activeTransfers.containsValue(path) || !Settings.oneTransferPerDirectory);
+            && (activeTransfers.values().stream().noneMatch(path::startsWith)
+            || !Settings.oneTransferPerDirectory);
 
     private Path getPathMostFree(long fileSize) {
         final List<Path> badPaths = new ArrayList<>(1);
@@ -94,7 +95,7 @@ public class ActivePaths {
                         try {
                             long size = file.length();
                             Files.delete(file.toPath());
-                            System.out.println("Deleted file: " + file.getName()
+                            System.out.println("Deleted file: " + path + file.getName()
                                                        + "\tSize: " + Math.round((double) size / 1048576) + " MiB");
                         } catch (IOException e) {
                             System.out.println("Error deleting file: " + file.getName());
