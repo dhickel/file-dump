@@ -6,6 +6,7 @@ A small program for transferring, and replacing files in bulk. Optimized for hig
 * Can delete files for space with the ability to delete by size, and/or for being in a specific directory.
 * Define the max number of transfers at once per server, in the client config.
 * Automatically rotated directories when writing.
+* Outputs transfer statistics to a file transfer_stats.csv
 
 
 ## Building
@@ -44,6 +45,11 @@ Rename and put in a folder with the config, and launch script (if you prefer)
 <br>
 
 ## Running
+Rename your jar-with-dependencies from the build to file-dump<server/client>, be sure the chmod +x the scripts if using them.
+
+Also make sure your config.yaml is in the same directory as your jar when launching.
+
+
 The program include to run scripts which can be customized. You can also launch with
 
 ```java -jar file-dump-server.jar ```
