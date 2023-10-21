@@ -12,13 +12,27 @@ import java.util.function.Predicate;
 public class ActivePaths {
     private List<Path> pathList = new ArrayList<>();
     private final HashMap<String, Path> activeTransfers = new HashMap<>();
+    private List<Path> badPathList;
 
     public synchronized void replaceList(List<Path> pathList) {
         this.pathList.clear();
+        var badPaths = pathList.stream().filter(p -> !Files.isWritable(p)).toList();
+        if (!badPaths.isEmpty()) {
+            System.out.println("Improper permissions to write to the following directories: " + badPaths);
+            System.out.println("Please fix permissions and directories will be added back on next transfer.");
+            if (badPathList == null) {
+                badPathList = new ArrayList<>(badPaths.size());
+            } else {
+                badPathList.clear();
+            }
+            badPathList.addAll(badPaths);
+        }
         this.pathList.addAll(pathList);
     }
 
     public synchronized Path getNewPath(String fileName, long fileSize) {
+        if (badPathList != null && !badPathList.isEmpty()) { checkBadPaths(); }
+
         Path pathMostFree = getPathMostFree(fileSize);
         if (pathMostFree == null && Settings.deleteForSpace) {
             try {
@@ -38,6 +52,19 @@ public class ActivePaths {
             return Path.of(freeFile + ".tmp");
         }
         return null;
+    }
+
+    private void checkBadPaths() {
+        var fixedPaths = badPathList.stream().filter(Files::isWritable).toList();
+        if (!fixedPaths.isEmpty()) {
+            pathList.addAll(fixedPaths);
+            System.out.println("Added fixed paths: " + fixedPaths);
+            fixedPaths.forEach(badPathList::remove);
+            if (!badPathList.isEmpty()) {
+                System.out.println("Improper permissions to write to the following directories: " + badPathList);
+                System.out.println("Please fix permissions and directories will be added back on next transfer.");
+            }
+        }
     }
 
     public synchronized Path getExistingPath(String fileName) {
@@ -96,7 +123,7 @@ public class ActivePaths {
                             long size = file.length();
                             Files.delete(file.toPath());
                             System.out.println("Deleted file: " + path + File.separator + file.getName()
-                                                       + "\tSize: " + Math.round((double) size / 1048576) + " MiB");
+                                    + "\tSize: " + Math.round((double) size / 1048576) + " MiB");
                         } catch (IOException e) {
                             System.out.println("Error deleting file: " + file.getName());
                         }
