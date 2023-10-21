@@ -2,38 +2,53 @@
 ### Client Config ###
 #####################
 
-# These settings will uses 80-110MB of memory while transfering if using the launch script
 
-# Read file from a separate thread, helps when writing to the disk while transfering
-# In most cases not needed, and may slow down writes to disk
-separateThreadForReading: false
+separateThreadForReading: true
 
 # Address and port of server receiving the files
-serverAddress: "localhost"
-serverPort: 9988
+serverAddresses:
+- "192.168.10.2"
+#- "192.168.1.177" # Add other hosts to list if using multiple instances
+
+
+serverPorts:
+- 9988
+# - 9999 # Add other hosts to list if using multiple instances
+
 
 # How many transfer to have open at once
-maxTransfers: 3
+maxTransfers:
+- 2
+# - 1 # Add other hosts limits to list if using multiple instances
 
 # How often to check for new files in seconds
-fileCheckInterval: 15
+fileCheckInterval: 10
 
+# Size out send buffer, best to leave this alone unless you know what your a doing
+socketBufferSize: 32768
 
-# Length of block queue when using separateThreadForReading
-# readQueueSize * blockSize = maxData in memory at once
+# Use a separate thread for reading, can increase transfer speed some, best left on
+separateThreadForReading: true
+
+# Length of block queue when using separateThreadForReading, 8 is a good amount
 readQueueSize: 8
 
 # Directories search at fileCheckInterval, indifferent to tailing slash, may need to escape backslash on windows
 monitoredDirectories:
-- "/dir/"
+- "/mnt/final"
+- "/mnt/buffer/"
 
-# File types that are monitored for to send do not include . prefix, ex. use "plot" not ".plot"
+# File types that are monitored for to send
 monitoredFileTypes:
-- "filetype"
+- "plot"
 
+# Amount to stream off disk as one time, per transfer, best left alone
+chunkSize: 4194304
+
+# Amount of data to send to out at once, per transfer
+# Ideally should be be a power of 2 and a divisor of the server's blockBufferSize, best left alone
+blockSize: 32768
 
 # Delete local files after successful transfers
-# Server relays if file was sucessfully transfered and size match
-# this will delete on that message
+# Server will only relay a successful transfer once last write is completed
 deleteAfterTransfer: true
-

@@ -14,7 +14,7 @@ public class QueuedFileSender implements Runnable {
     private final int blockSize;
     private final Socket socket;
 
-    public QueuedFileSender(File file, String address, int port, int transferLimit) throws IOException {
+    public QueuedFileSender(File file, String address, int port) throws IOException {
         fileSize = file.length();
         fileName = file.getName();
         this.file = file;

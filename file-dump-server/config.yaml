@@ -3,55 +3,55 @@
 #####################
 
 
-# These settings will use around 500-600MB memory when used with the launch script
-
-# Best left on, some memory can be save by disabling
-# Disabling will block from receiving data every time it writes the blockBuffer
-# Offers around a 10-15% Speed increase for ~3x the memory used
-# Helps a lot when writing to slower HDDs
-
-
-
-# If using or have a system with multiple nics you may need to explicitly bind to an address
-# Can also be used to run multiple instances on different nics
-bindAddress: "localhost"
-port: 9988
-
-separateThreadForWriting: true
-
-# Max queue size when using separateThreadForWrite
-queueSize: 8
-
-# Indifferent to trailing slash, you may need to escape backslashes on windows
-outputDirectories:
-- "/dir"
-- "/dir2/"
-
-# Will only initiate one transfer to a directory at at time regardless of free space
-limitOneTransferPerDirectory: true
+bindAddress: "192.168.1.177" # Can set to 0.0.0.0 if running only one instance
 
 # Port to use
 port: 9988
 
 
+# Best left on, some memory can be save by disabling
+# Disabling will block from receiving data every time it writes the blockBuffer
+separateThreadForWriting: true
+
+# Max queue size when using separateThreadForWrite
+# will increase memory usage both of application and os network buffer
+# increasing too much will allow client to send data constantly which will quickly fill the os network buffer
+queueSize: 16
+
+# Indifferent to trailing slash, you may need to escape backslashes on windows
+outputDirectories:
+- "/mnt/19/"
+- "/mnt/20/"
+
+# Will only initiate one transfer to a directory at at time regardless of free space
+limitOneTransferPerDirectory: true
+
+
+# -1 to let jvm control, best left untouched, too small will slow transfers
+socketBufferSize: 32768
+
+# Amount of block of data from client to buffer before writing or send to queue
+blockBufferSize: 1048576
+
+# Size of buffer for disk writes when using separateThreadForWrite, may see improvements editing
+# Should be in a power of 2 of you hard disk blocksize, and small enough to fit into cache.
+# Increasing it can lead to less seeks, but you hdd is likely already caching multiple buffers worth before writing
+# -1 lets jvm control
+writeBufferSize: 1048576
+
+# Delete files from the specified deletion directory if they meet the type and size requirements
+deleteForSpace: true
+
 # Do not include the . only the extension name ex. "plot" not ".plot"
 deletedFileTypes:
-- "filetype"
-
+- "plot"
 
 # Directories who files are subject to deletion if they meet the filetype and size requirements
 deletionDirectories:
-- "/dir1"
-- "/dir2/"
-
-# Delete files from the specified deletion directory if they meet the type and size requirements
-deleteForSpace: false
+- "/mnt/19/old/"
+- "/mnt/20/old/"
 
 
 # Threshold in MiB for files to delete, any files larger than this will be deleted
-# When loading the cvonfig this will display as bytes, but input as MiB
-deletionThreshHold: 9999999 #MiB
-
-
-# Overwrite file if it exists.
-overWriteExisting: true
+deletionThreshHold: 70_000 # In MiB
+overWriteExisting: true # Will overwrite existing file

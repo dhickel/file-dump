@@ -29,10 +29,6 @@ public class Main {
         final BiPredicate<String, Integer> limitMet = (address, limit) ->
                 activeTransfers.values().stream().filter(e -> e.equals(address)).count() >= limit;
 
-        // TODO make this not keep looping if files existing on server, getting resent then rejected and never progressing,
-        //  this is also broken for transferring without deleting as it will also keep sending the same file
-        //  issue is it can't see if a transfer is rejected, so will likely need to keep track of them in an array,
-        //  works fine atm as long as deleting files, and not trying to keep sending the same file, which it will do if not deleting
         executor.scheduleAtFixedRate(() -> {
             try {
                 Settings.load(); // Can just stick this here instead of giving it its own thread
@@ -40,7 +36,6 @@ public class Main {
                     final String addr = Settings.serverAddresses.get(i);
                     final int limit = Settings.maxTransfers.get(i);
                     final int port = Settings.serverPorts.get(i);
-                    final int speedCap = Settings.transferSpeedCaps.get(i);
                     if (limitMet.test(addr + port, Settings.maxTransfers.get(i))) { continue; }
                     Settings.monitoredDirectories.stream()
                             .map(File::new)
@@ -51,8 +46,8 @@ public class Main {
                                     try {
                                         activeTransfers.put(file.getName(), addr + port);
                                         executor.submit(Settings.separateThreadForReading
-                                                                ? new QueuedFileSender(file, addr, port, speedCap)
-                                                                : new FileSender(file, addr, port, speedCap));
+                                                                ? new QueuedFileSender(file, addr, port)
+                                                                : new FileSender(file, addr, port));
                                     } catch (IOException e) {
                                         System.out.println("Failed to connect to server: " + file);
                                         activeTransfers.remove(file.getName());

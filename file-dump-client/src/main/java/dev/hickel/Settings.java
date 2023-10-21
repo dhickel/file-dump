@@ -19,7 +19,6 @@ public class Settings {
     public static volatile List<String> serverAddresses = List.of("localhost");
     public static boolean separateThreadForReading = true;
     public static volatile List<Integer> serverPorts = List.of(9988);
-    public static volatile List<Integer> transferSpeedCaps = List.of(-1);
     public static volatile List<Integer> maxTransfers = List.of(3);
     public static volatile int socketBufferSize = 32768;
     public static volatile int readQueueSize = 4;
@@ -49,7 +48,6 @@ public class Settings {
                 case "serverAddresses" -> serverAddresses = mapper.readValue(next.getValue().traverse(), STRING_REF);
                 case "separateThreadForReading" -> separateThreadForReading = next.getValue().asBoolean();
                 case "serverPorts" -> serverPorts = mapper.readValue(next.getValue().traverse(), INTEGER_REF);
-                case "transferSpeedCaps" -> transferSpeedCaps = mapper.readValue(next.getValue().traverse(), INTEGER_REF);
                 case "maxTransfers" -> maxTransfers = mapper.readValue(next.getValue().traverse(), INTEGER_REF);
                 case "socketBufferSize" -> socketBufferSize = next.getValue().asInt();
                 case "readQueueSize" -> readQueueSize = next.getValue().asInt();
@@ -73,7 +71,6 @@ public class Settings {
         sb.append("\n  separateThreadForReading: ").append(separateThreadForReading);
         sb.append("\n  serverPorts: ").append(serverPorts);
         sb.append("\n  maxTransfers: ").append(maxTransfers);
-        sb.append("\n  transferSpeedCaps: ").append(transferSpeedCaps);
         sb.append("\n  socketBufferSize: ").append(socketBufferSize);
         sb.append("\n  readQueueSize: ").append(readQueueSize);
         sb.append("\n  monitoredDirectories: ").append(monitoredDirectories);

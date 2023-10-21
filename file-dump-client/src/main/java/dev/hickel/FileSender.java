@@ -13,9 +13,8 @@ public class FileSender implements Runnable {
     private final int chunkSize;
     private final int blockSize;
     private final Socket socket;
-    private final int transferLimit;
 
-    public FileSender(File file, String address, int port, int transferLimit) throws IOException {
+    public FileSender(File file, String address, int port) throws IOException {
         fileSize = file.length();
         fileName = file.getName();
         this.file = file;
@@ -24,7 +23,6 @@ public class FileSender implements Runnable {
         socket = new Socket(address, port);
         socket.setSoTimeout(120_000);
         socket.setTrafficClass(24);
-        this.transferLimit = transferLimit < 1 ? -1 : transferLimit;
     }
 
     @Override
@@ -54,9 +52,6 @@ public class FileSender implements Runnable {
                 socketOut.writeInt(bytesRead);
                 socketOut.write(buffer, 0, bytesRead);
                 socketOut.flush();
-                if (transferLimit != -1) {
-                    LockSupport.parkNanos(transferLimit - 50);
-                }
             }
             socketOut.writeInt(-1);
             socketOut.flush();
