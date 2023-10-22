@@ -169,7 +169,7 @@ overWriteExisting: true # Will overwrite existing file
 
 ## Client Config
 
-***Example if for sending to multiple servers as either instances on a host or separate. If only sending to a single instance just remove the multiple entries, the default config is setup for only one host, this provides an example for two***
+***Example for sending to multiple servers as either instances on a host or separate. If only sending to a single instance just remove the multiple entries, the default config is setup for only one host, this provides an example for two***
 
 ```YAML
 #####################
