@@ -63,7 +63,7 @@ You run the server on the pc you are transferring ***to***
 If wishing to run the server across multiple nic you will run an instance of the server for each address, binding it in the server config. The client can communicate to multiple server via the same instance, so you only need to run one instance of it. You can also limit in the client config the max amount of transfer to initiate to each server. These come in the form of a list so iif you have 2 servers in the limit list define the limit for that server on the same index of the server list (example below).
 
 ### Linux
-Two script are provide the nohup up one detaches it from the terminal so it can run in the background. If not familiar with this, this means you will need to manually stop it when you are ready.
+Two script are provide, the nohup up one detaches it from the terminal so it can run in the background. If not familiar with this, this means you will need to manually stop it when you are ready.
 this can be done with:
 ```bash
 ps aux | grep file-dump-server
@@ -72,6 +72,8 @@ the take the pid (first number on the right) and do:
 ```bash
 kill <pid>
 ```
+
+You can tail -f the nohup.out file in the directory to monitor.
 
 
 
@@ -119,7 +121,7 @@ separateThreadForWriting: true
 
 # Max queue size when using separateThreadForWrite
 # will increase memory usage both of application and os network buffer
-# increasing too much will allow client to send data constantly which will quickly fill the os network buffer
+# 16 is an ideal size, your can try 32 if your want
 queueSize: 16
 
 # Indifferent to trailing slash, you may need to escape backslashes on windows
@@ -140,8 +142,8 @@ blockBufferSize: 1048576
 
 
 # Size of buffer for disk writes when using separateThreadForWrite, may see improvements editing
-# Should be in a power of 2 of you hard disk blocksize, and small enough to fit into cache.
-# Increasing it can lead to less seeks, but you hdd is likely already caching multiple buffers worth before writing
+# Should be in a power of 2 of your hard disk blocksize, and small enough to fit into its cache.
+# Increasing it can lead to less seeks, but your hdd is likely already caching multiple buffers worth before writing
 # -1 lets jvm control
 writeBufferSize: 1048576
 
