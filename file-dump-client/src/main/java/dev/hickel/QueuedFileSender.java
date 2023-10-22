@@ -39,12 +39,14 @@ public class QueuedFileSender implements Runnable {
             if (!accepted) {
                 Main.activeTransfers.remove(fileName);
                 System.out.println("No space for, file already exists, or all paths in use: " + fileName
-                                           + " will retry in: " + Settings.fileCheckInterval + " Seconds");
+                                           + " will retry in: " + Settings.fileCheckInterval + " Seconds"
+                        + "| Host: " + socket.getInetAddress().getHostAddress());
                 return;
             }
             CircularBufferQueue bufferQueue = new CircularBufferQueue(file);
             new Thread(bufferQueue).start();
-            System.out.println("Started transfer of file: " + fileName);
+            System.out.println("Started transfer of file: " + fileName
+                    + "| Host: " + socket.getInetAddress().getHostAddress());
 
 
             // Loop through until the "null" size 0 array is returned from the buffer queue.
@@ -71,11 +73,14 @@ public class QueuedFileSender implements Runnable {
             boolean success = socketIn.readBoolean(); // wait for servers last write, to avoid an exception on quick disconnect
             socket.close();
             if (success) {
-                System.out.println("Finished transfer for file: " + fileName);
+                System.out.println("Finished transfer for file: " + fileName
+                        + "| Host: " + socket.getInetAddress().getHostAddress());
             } else {
-                System.out.println("Error during finalization of file transfer");
+                System.out.println("Error during finalization of file transfer"
+                        + "| Host: " + socket.getInetAddress().getHostAddress());
                 Main.activeTransfers.remove(fileName);
-                throw new IllegalStateException("Server responded to end of transfer as failed");
+                throw new IllegalStateException("Server responded to end of transfer as failed"
+                        + "| Host: " + socket.getInetAddress().getHostAddress());
             }
             if (Settings.deleteAfterTransfer) {
                 Files.delete(file.toPath());
@@ -85,18 +90,22 @@ public class QueuedFileSender implements Runnable {
             Main.activeTransfers.remove(fileName);
         } catch (IOException e) {
             Main.activeTransfers.remove(fileName);
-            System.out.println("Error in file transfer, most likely connection was lost.");
+            System.out.println("Error in file transfer, most likely connection was lost."
+                    + "| Host: " + socket.getInetAddress().getHostAddress());
             e.printStackTrace();
-            try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"); }
+            try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"
+                    + "| Host: " + socket.getInetAddress().getHostAddress()); }
 
         } catch (Exception e) {
             Main.activeTransfers.remove(fileName);
             e.printStackTrace();
-            try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"); }
+            try { socket.close(); } catch (IOException ee) { System.out.println("Error closing socket"
+                    + "| Host: " + socket.getInetAddress().getHostAddress()); }
         } finally {
             System.gc();
             if (socket != null) {
-                try { socket.close(); } catch (IOException e) { System.out.println("Error closing socket"); }
+                try { socket.close(); } catch (IOException e) { System.out.println("Error closing socket"
+                        + "| Host: " + socket.getInetAddress().getHostAddress()); }
             }
         }
     }
