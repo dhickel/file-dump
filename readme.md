@@ -45,7 +45,7 @@ Rename and put in a folder with the config, and launch script (if you prefer)
 <br>
 
 ## Running
-Rename your jar-with-dependencies from the build to file-dump<server/client>, be sure the chmod +x the scripts if using them.
+Rename your jar-with-dependencies from the build to file-dump<server/client>.jar, be sure the chmod +x the scripts if using them.
 
 Also make sure your config.yaml is in the same directory as your jar when launching.
 
