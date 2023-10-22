@@ -27,7 +27,7 @@ Repository contains both a client and a server build that will need build separa
 In both file-dump-client and file-dump-server from the terminal run
 
 ```
-maven clean package
+mvn clean package
 ```
 
 You will get 2 jars, the jar-with-dependencies is the one you want.
